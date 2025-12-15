@@ -1,8 +1,8 @@
 import styles from '../styles/Landing.module.css'
 
-function  PrimaryButton({text}) {
+function PrimaryButton({ text }) {
 
-    return ( 
+    return (
         <button className={styles.primaryButton}>
             {text}
         </button>

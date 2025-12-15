@@ -1,0 +1,28 @@
+.playerListContainer {
+    display: flex;
+    flex-direction: column;
+    row-gap: 20px;
+}
+
+.player {
+    display: flex;
+    row-gap: 16px;
+    column-gap: 16px;
+}
+
+.nameContainer {
+    display: flex;
+    flex-direction: column;
+    row-gap: 4px;
+}
+
+.playerState {
+    color: #A8B2D1;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 100%;
+    background-color: #E94560;
+}

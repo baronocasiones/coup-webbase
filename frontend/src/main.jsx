@@ -1,12 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/index.css'
-import Landing from './pages/Landing.jsx'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import Landing from './pages/Landing.jsx'
+import Lobby from './pages/Lobby.jsx'
 
 const router = createBrowserRouter([
     { path: '/', element: <Landing /> },
-    { path: '/lobby', element: <h1>Lobby Page</h1> }
+    { path: '/lobby', element: <Lobby /> }
 ])
 
 createRoot(document.getElementById('root')).render(
