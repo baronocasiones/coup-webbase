@@ -1,0 +1,37 @@
+.chatBoxContainer {
+    display: flex;
+    flex-direction: column;
+    row-gap: 16px;
+    padding: 24px;
+}
+
+.chats {
+    display: flex;
+    flex-direction: column;
+    row-gap: 12px;
+}
+
+.senderName {
+    color: #E94560;
+}
+
+.message {
+    color: #A8B2D1;
+}
+
+.chatInputContainer { 
+    display: flex;
+    column-gap: 8px;
+}
+
+.chatInput{
+    flex-basis: 500% !important;
+    margin-bottom: 0px !important;
+    background: #1A1A2E !important;
+    border: 0px !important;
+    placeholder-color: #FFFFFF;
+}
+
+.chatInput::placeholder{
+    color: #FFFFFF !important;
+}
