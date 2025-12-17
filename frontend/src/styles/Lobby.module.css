@@ -2,6 +2,7 @@
     display: flex;
     flex-direction: column;
     row-gap: 20px;
+    flex-basis: 100%;
 }
 
 .player {
@@ -48,4 +49,10 @@
     height: 48px;
     border-radius: 100%;
     background-color: #E94560;
+}
+
+.lobbyContainer {
+    display: flex;
+    column-gap: 32px;
+    justify-content: space-between;
 }
