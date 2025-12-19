@@ -1,5 +1,6 @@
 import styles from './../styles/Lobby.module.css'
 import ChatBox from './../components/ChatBox'
+import PrimaryButton from './../components/PrimaryButton'
 
 function Lobby() {
     return (
@@ -37,7 +38,13 @@ function Lobby() {
                     </div>
                 </div>
             </div>
-            <ChatBox header="Lobby Chat" />
+            <div>
+                <ChatBox header="Lobby Chat" />
+                <div style={{ display: 'flex', justifyContent: 'center', overflow: 'hidden', marginBottom: '16px'}}>
+                    <PrimaryButton text="Ready" width='85%'/>
+                </div>
+                <label style={{ display: 'flex', justifyContent: 'center', color: '#A8B2D1'}}>Waiting for all players to be ready</label>
+            </div>
         </div>
     )
 }

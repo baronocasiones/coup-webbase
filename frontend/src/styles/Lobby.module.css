@@ -3,6 +3,7 @@
     flex-direction: column;
     row-gap: 20px;
     flex-basis: 100%;
+    width: 32rem;
 }
 
 .player {
