@@ -76,9 +76,27 @@ function PlayRoom() {
                             </div>
                         </div>
                     </div>
+                    <div className={styles.movePreview}>
+                        <h3 style={{ textAlign: 'center' }}>Marcus claims to be the Duke</h3>
+                        <span style={{ textAlign: 'center', color: '#A8B2D1' }}>Marcus is taking 3 coins from the treasury. You can challenge this claim or let it pass.</span>
+                        <div className={styles.challengeButton}>
+                            <PrimaryButton text='Challenge' width='auto' />
+                            <PrimaryButton text='Pass' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
+                        </div>
+                    </div>
+                    <div className={styles.userUIContainer}>
+                        <div className={styles.userInfo}>
+                            <div className={styles.userIdentifier}>
+                                <span className={styles.profilePic} style={{ backgroundColor: '#E94560', width: '56px', height: '56px' }}></span>
+                                <h3 style={{ alignContent: 'center' }}>You (Alexandra)</h3>
+                            </div>
+                            <div className={styles.userCoins}>
+                                <span style={{ width: '28px', height: '28px', borderRadius: '100%', display: 'inline-block', backgroundColor: '#FFD700'}}></span>
+                                <span style={{ color: '#FFD700'}}>4</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div></div>
-                <div></div>
             </div>
         </>
     )
