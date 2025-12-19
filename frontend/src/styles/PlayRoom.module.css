@@ -1,0 +1,163 @@
+.header {
+    display: flex;
+    column-gap: 30%;
+    padding: 0px 40px;
+    justify-content: space-between;
+    width: 100vw;
+    position: relative;
+    top: 10px;
+}
+
+.currentTurnContainer {
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+}
+
+.statsContainer {
+    display: flex;
+    column-gap: 32px;
+    white-space: nowrap;
+}
+
+.statLabels {
+    color: #A8B2D1;
+}
+
+.mainContainer{
+    display: flex;
+    padding: 24px 40px 24px;
+    width: 100vw;
+}
+
+.gameContainer{
+    display: flex;
+    flex-direction: column;
+}
+
+.profilePic{
+    width: 64px;
+    height: 64px;
+    border-radius: 100%;
+    background-color: #667EEA;
+    display: inline-block;
+}
+
+.playersContainer{
+    display: flex;
+    padding: 20px;
+    column-gap: 5rem;
+    width: auto;
+}
+
+.player{
+    display: flex;
+    flex-direction: column;
+    row-gap: 12px;
+    padding: 16px;
+    align-items: center;
+}
+
+.playerName{
+    text-align: center;
+}
+
+.coinIcon{
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    background-color: #FFD700;
+    display: inline-block;
+}
+
+.coinValue{
+    color: #FFD700;
+}
+
+.coins{
+    display: flex;
+    column-gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.cardsContainer{
+    display: flex;
+    column-gap: 8px;
+}
+
+.card{
+    width: 40px;
+    height: 56px;
+    display: inline-block;
+    background-color: #E94560;
+    border-radius: 4px;
+}
+
+.movePreview {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    row-gap: 20px;
+}
+
+.challengeButton {
+    display: flex;
+    column-gap: 1rem;
+    justify-content: center;
+}
+
+.userUIContainer{
+    display: flex;
+    flex-direction: column;
+    padding: 0px 24px;
+    row-gap: 20px;
+}
+
+.userInfo{
+    display: flex;
+    gap: 55vw;
+}
+
+.userIdentifier{
+    display: flex;
+    column-gap: 1rem;
+}
+
+.userCoins{
+    display: flex;
+    background-color: rgba(255, 215, 0, 0.148);
+    padding: 12px 24px 12px;
+    border-radius: 8px;
+    column-gap: 12px;
+    justify-content: center;
+    align-items: center;
+}
+
+.userCardsContainer{
+    display: flex;
+    column-gap: 16px;
+    justify-content: center;
+}
+
+.userCard{
+    display: flex;
+    width: 120px;
+    height: 89px;
+    border-radius: 8px;
+    background-color: #667EEA;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.userMoves{
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 16px;
+}
+
+

@@ -1,0 +1,63 @@
+.primaryButton {
+    background-color: #E94560;
+    padding: 16px 16px;
+    width: 100%;
+    font-family: inter;
+    color: white;
+    border: 0px;
+    border-radius: 8px;
+}
+
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: "Inter", sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: #ffffff;
+}
+
+.loginContainer {
+    width: 440px;
+    padding: 40px;
+}
+
+h1 {
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 20%;
+    text-align: center;
+}
+
+.loginForm {
+    display: flex;
+    flex-direction: column;
+    margin-top: 30px;
+}
+
+label {
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #e2e8f0;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    background: #0f1624;
+    border: 1px solid #2d3748;
+    border-radius: 6px;
+    color: #ffffff;
+    margin-bottom: 18px;
+}
+
+input::placeholder {
+    color: #718096;
+}
+

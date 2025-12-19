@@ -1,0 +1,59 @@
+.playerListContainer {
+    display: flex;
+    flex-direction: column;
+    row-gap: 20px;
+    flex-basis: 100%;
+    width: 32rem;
+}
+
+.player {
+    display: flex;
+    row-gap: 16px;
+    column-gap: 12px;
+    padding: 16px;
+}
+
+.gameSettings {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    row-gap: 20px;
+}
+
+.settingValue {
+    color: #E94560;
+}
+
+.settingContainer {
+    display: flex;
+    flex-direction: column;
+    row-gap: 20px;
+}
+
+.settingItem {
+    display: flex;
+    justify-content: space-between;
+}
+
+.nameContainer {
+    display: flex;
+    flex-direction: column;
+    row-gap: 4px;
+}
+
+.playerState {
+    color: #A8B2D1;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 100%;
+    background-color: #E94560;
+}
+
+.lobbyContainer {
+    display: flex;
+    column-gap: 32px;
+    justify-content: space-between;
+}
