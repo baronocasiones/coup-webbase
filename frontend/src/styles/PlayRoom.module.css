@@ -1,12 +1,11 @@
 .header {
     display: flex;
     column-gap: 30%;
-    padding: 20px 40px 20px;
+    padding: 0px 40px;
     justify-content: space-between;
     width: 100vw;
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative;
+    top: 10px;
 }
 
 .currentTurnContainer {
@@ -98,7 +97,7 @@
 .movePreview {
     display: flex;
     flex-direction: column;
-    padding: 2rem;
+    padding: 1rem;
     row-gap: 20px;
 }
 
@@ -111,13 +110,13 @@
 .userUIContainer{
     display: flex;
     flex-direction: column;
-    padding: 24px;
+    padding: 0px 24px;
     row-gap: 20px;
 }
 
 .userInfo{
     display: flex;
-    justify-content: space-between;
+    gap: 55vw;
 }
 
 .userIdentifier{
@@ -134,3 +133,31 @@
     justify-content: center;
     align-items: center;
 }
+
+.userCardsContainer{
+    display: flex;
+    column-gap: 16px;
+    justify-content: center;
+}
+
+.userCard{
+    display: flex;
+    width: 120px;
+    height: 89px;
+    border-radius: 8px;
+    background-color: #667EEA;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.userMoves{
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 16px;
+}
+
+
