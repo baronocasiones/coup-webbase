@@ -2,10 +2,12 @@ import styles from '../styles/Landing.module.css'
 import PrimaryButton from '../components/PrimaryButton'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import axios from '../axios'
 
 function Landing() {
     const navigate = useNavigate()
     const [username, setUsername] = useState('')
+
 
     return (
         <>
@@ -17,7 +19,11 @@ function Landing() {
                 <form className={styles.loginForm} onSubmit={(e) => {
                     e.preventDefault()
                     if (username.trim()){
-                        navigate('/lobby')
+                        axios.post('/player', null, { params: { name: username.trim() }}).then(response => {
+                            navigate('/lobby', { state: { userId: response.data.id}})
+                        }).catch(error => {
+                            console.error('Error creating player:', error.message)
+                        })
                     }
                 }}>
                     <input

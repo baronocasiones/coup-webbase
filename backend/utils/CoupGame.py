@@ -1,6 +1,6 @@
 from typing import List
 from uuid import UUID, uuid4
-from Players import Players
+from utils.Players import Players
 
 class CoupGame:
     def __init__(self):
@@ -11,17 +11,20 @@ class CoupGame:
         self.turn: int = 0
         self.state: GameState = None # for now since GameState is not defined
 
-    def start_game(self) => None:
+    def add_player(self, new_player: Players) -> None:
+        self.players.append(new_player)
+
+    def start_game(self) -> None:
         pass
 
-    def handle_move(self, player_id: UUID, move: str) => None:
+    def handle_move(self, player_id: UUID, move: str) -> None:
         pass
 
-    def handle_challenge(self) => None:
+    def handle_challenge(self) -> None:
         pass
 
-    def resolve_no_challenge(self) => None:
+    def resolve_no_challenge(self) -> None:
         pass
 
-    def execute_move(self) => None:
+    def execute_move(self) -> None:
         pass

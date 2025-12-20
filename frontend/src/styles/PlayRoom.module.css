@@ -116,7 +116,7 @@
 
 .userInfo{
     display: flex;
-    gap: 55vw;
+    gap: 43vw;
 }
 
 .userIdentifier{
@@ -137,7 +137,6 @@
 .userCardsContainer{
     display: flex;
     column-gap: 16px;
-    justify-content: center;
 }
 
 .userCard{

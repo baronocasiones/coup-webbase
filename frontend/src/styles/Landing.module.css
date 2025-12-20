@@ -6,7 +6,18 @@
     color: white;
     border: 0px;
     border-radius: 8px;
+    transition: background 0.2s;
 }
+
+.primaryButton:hover {
+    box-shadow: 0 4px 12px rgpa(0, 53, 186, 0.15);
+    transform: translateY(-2px) scale(1.03);
+    transition:
+        backround 0.2s,
+        box-shadow 0.2s,
+        transform 0.2s;
+}
+ 
 
 * {
     padding: 0;

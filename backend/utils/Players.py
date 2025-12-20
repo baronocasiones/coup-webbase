@@ -8,6 +8,6 @@ class Players:
         self.cards: List[str] = []
         self.coins: int = 2
 
-    def change_name(self, new_name: str) => None:
+    def change_name(self, new_name: str) -> None:
         self.name = new_name
 
