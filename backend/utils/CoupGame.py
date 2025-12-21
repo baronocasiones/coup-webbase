@@ -1,15 +1,15 @@
-from typing import List
 from uuid import UUID, uuid4
 from utils.Players import Players
+from utils.GameState import GameState
 
 class CoupGame:
     def __init__(self):
         self.declared_move: str = ""
-        self.players: List[Players] = []
-        self.lobby_id: UUID = uuid4()
-        self.move_logs: List[Logs] = []
+        self.players: list[Players] = []
+        self.game_id: UUID = uuid4()
+        self.move_logs: list[Logs] = []
         self.turn: int = 0
-        self.state: GameState = None # for now since GameState is not defined
+        self.state: GameState = GameState.WAITING_FOR_PLAYERS
 
     def add_player(self, new_player: Players) -> None:
         self.players.append(new_player)
