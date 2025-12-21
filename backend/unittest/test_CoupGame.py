@@ -92,3 +92,4 @@ def test_handle_challenge():
     
     assert game.state is GameState.CHALLENGE_HANDLE
 
+

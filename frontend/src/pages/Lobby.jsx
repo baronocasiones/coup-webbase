@@ -1,7 +1,7 @@
 import styles from './../styles/Lobby.module.css'
 import ChatBox from './../components/ChatBox'
 import PrimaryButton from './../components/PrimaryButton'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import axios from '../axios'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -10,11 +10,30 @@ function Lobby() {
     const location = useLocation()
     const [players, setPlayers] = useState([])
     const userId = location.state?.userId
+    const ws = useRef(null);
 
     useEffect(() => {
         axios.get('/players').then(response => {
             setPlayers(response.data)
         })
+
+        ws.current = new WebSocket(`ws://localhost:8000/ws?player_id=${userId}`)
+        ws.current.onopen = () => {
+            ws.send
+        }
+
+        ws.current.onmessage = (event) => {
+            console.log("Received:", event.data)
+        } 
+
+        ws.current.onclose = () => {
+            console.log("WebSocket disconnected")
+        }
+
+        ws.current.onerror = (error) => {
+            console.error("Websocet error:", error)
+        }
+
     }, [])
 
     const handleReady = () => {

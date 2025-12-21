@@ -1,8 +1,9 @@
 from pydantic import BaseModel
+from uuid import UUID
 
 class PlayerModel(BaseModel):
     name: str
-    id: Optional[UUID]
+    id: UUID
     ready: bool = False
 
 

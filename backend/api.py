@@ -1,11 +1,13 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from utils.CoupGame import CoupGame
 from utils.Players import Players
 from uuid import UUID
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from models.PlayerModel import PlayerModel
+from models.GameStateModel import GameStateModel
 from utils.ConnectionManager import ConnectionManager
+import json
 
 game = CoupGame()
 manager = ConnectionManager()
@@ -35,10 +37,15 @@ def remove_player(user_id: UUID):
     return game.players
 
 @app.websocket('/ws')
-async def websocket_enpoint(websocket: WebSocket, player_id: UUID):
-    manager.connect(websocket, player_id)
+async def websocket_endpoint(websocket: WebSocket, player_id: UUID):
+    await manager.connect(websocket, player_id)
     try:
         while True:
             data = await websocket.receive_text()
-            await manager.broadcast()
+            data_dict = json.loads(data)
+            game_state = GameStateModel(**data_dict)
+            await manager.broadcast(state.json())
+
+    except WebSocketDisconnect:
+        manager.disconnect(player_id)
 
