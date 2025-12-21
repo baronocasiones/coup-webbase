@@ -10,7 +10,8 @@ from utils.ConnectionManager import ConnectionManager
 import json
 
 game = CoupGame()
-manager = ConnectionManager()
+game_manager = ConnectionManager()
+chat_manager = ConnectionManager()
 
 app = FastAPI()
 app.add_middleware(
@@ -23,29 +24,54 @@ app.add_middleware(
 
 @app.get("/players", response_model=list[PlayerModel])
 def get_players():
-    return game.players
+    response = [PlayerModel(id=player.id, name=player.name, isReady=player.is_ready) for player in game.players]
+    return response
 
 @app.post("/player", response_model=PlayerModel)
 def add_player(name: str):
     player = Players(name)
     game.add_player(player)
-    return player
+    response = PlayerModel(id=player.id, name=player.name, isReady=player.is_ready)
+    return response
     
 @app.delete("/player", response_model=list[PlayerModel])
 def remove_player(user_id: UUID):
-    game.players = [p for p in game.players if p.id != user_id]
-    return game.players
+    game.players = [player for player in game.players if player.id != user_id]
+    response = [PlayerModel(id=player.id, name=player.name, isReady=player.is_ready) for player in game.players]
+    return response
 
-@app.websocket('/ws')
+@app.websocket('/ws/game')
 async def websocket_endpoint(websocket: WebSocket, player_id: UUID):
-    await manager.connect(websocket, player_id)
+    player_obj = next(filter(lambda player: player.id == player_id, game.players), None)
+    player_name = player_obj.name if player_obj else None
+    if not player_name:
+        await websocket.close(code=1008, reason="Invalid player ID")
+        return
+
+    await game_manager.connect(websocket, player_id, player_name)
     try:
         while True:
             data = await websocket.receive_text()
             data_dict = json.loads(data)
             game_state = GameStateModel(**data_dict)
-            await manager.broadcast(state.json())
+            await game_manager.broadcast(state.json())
 
     except WebSocketDisconnect:
-        manager.disconnect(player_id)
+        game_manager.disconnect(player_id)
 
+@app.websocket('/ws/lobbyChat')
+async def lobby_chat(websocket: WebSocket, player_id: UUID):
+    player_obj = next(filter(lambda player: player.id == player_id, game.players), None)
+    player_name = player_obj.name if player_obj else None
+    if not player_name:
+        await websocket.close(code=1008, reason="Invalid player ID")
+        return
+
+    await chat_manager.connect(websocket, player_id, player_name)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await chat_manager.broadcast({"player": player_name, "message": data})
+
+    except WebSocketDisconnect:
+        chat_manager.disconnect(player_id)

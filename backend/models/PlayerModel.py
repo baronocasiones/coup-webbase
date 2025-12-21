@@ -4,6 +4,5 @@ from uuid import UUID
 class PlayerModel(BaseModel):
     name: str
     id: UUID
-    ready: bool = False
-
+    isReady: bool
 

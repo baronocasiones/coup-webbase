@@ -2,7 +2,6 @@ from uuid import UUID, uuid4
 from utils.Players import Players
 from utils.GameState import GameState
 
-
 class CoupGame:
     def __init__(self):
         self.declared_move: str = ""

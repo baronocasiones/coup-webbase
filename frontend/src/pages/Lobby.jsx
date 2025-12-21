@@ -10,31 +10,52 @@ function Lobby() {
     const location = useLocation()
     const [players, setPlayers] = useState([])
     const userId = location.state?.userId
-    const ws = useRef(null);
+    const GameWs = useRef(null);
+    const chatWs = useRef(null);
 
     useEffect(() => {
         axios.get('/players').then(response => {
             setPlayers(response.data)
         })
 
-        ws.current = new WebSocket(`ws://localhost:8000/ws?player_id=${userId}`)
-        ws.current.onopen = () => {
-            ws.send
-        }
+        GameWs.current = new WebSocket(`ws://localhost:8000/ws/game?player_id=${userId}`)
 
-        ws.current.onmessage = (event) => {
-            console.log("Received:", event.data)
-        } 
+        GameWs.current.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log("Received:", data);
 
-        ws.current.onclose = () => {
+                // Validate incoming data
+                if (!data.player_id || !data.player_name) return;
+
+                setPlayers(prevPlayers => {
+                    const exists = prevPlayers.some(player => player.id === data.player_id);
+                    if (data.player_id !== userId && !exists) {
+                        return [
+                            ...prevPlayers,
+                            { name: data.player_name, id: data.player_id, ready: false }
+                        ];
+                    }
+                    return prevPlayers;
+                });
+            } catch (error) {
+                console.error("Failed to parse WebSocket message:", error);
+            }
+        };
+
+        GameWs.current.onclose = () => {
             console.log("WebSocket disconnected")
         }
 
-        ws.current.onerror = (error) => {
+        GameWs.current.onerror = (error) => {
             console.error("Websocet error:", error)
         }
 
     }, [])
+
+    useEffect(() => {
+        console.log(players)
+    }, [players])
 
     const handleReady = () => {
         const userPlayer = players.find(player => player.id === userId)
@@ -46,9 +67,9 @@ function Lobby() {
     }
 
     const handleDisconnect = () => {
-        if (!userId) return; 
+        if (!userId) return;
 
-        axios.delete('/player', { params: { user_id: userId }}).then(response => {
+        axios.delete('/player', { params: { user_id: userId } }).then(response => {
             setPlayers(response.data)
             navigate('/');
         }).catch(error => {
@@ -56,10 +77,6 @@ function Lobby() {
         })
 
     }
-
-    useEffect(() => {
-        console.log(players) 
-    }, [players])
 
     return (
         <div className={styles.lobbyContainer}>
