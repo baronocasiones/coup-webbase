@@ -10,10 +10,14 @@ function Lobby() {
     const location = useLocation()
     const [players, setPlayers] = useState([])
     const userId = location.state?.userId
+    const player_name = players.find(player => player.id === userId)?.name || null;
     const GameWs = useRef(null);
     const chatWs = useRef(null);
 
+    player_name || navigate('/');
+
     useEffect(() => {
+
         axios.get('/players').then(response => {
             setPlayers(response.data)
         })
