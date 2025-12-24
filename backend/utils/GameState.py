@@ -1,6 +1,6 @@
 from enum import Enum
 
-class GameState(Enum):
+class GameState(str, Enum):
     WAITING_FOR_ACTION = "WAITING FOR ACTION"
     WAITING_FOR_PLAYERS = "WAITING FOR PLAYERS"
     ACTION_DECLARED = "ACTION DECLARED"

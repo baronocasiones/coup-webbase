@@ -6,3 +6,4 @@ class PlayerModel(BaseModel):
     id: UUID
     isReady: bool
 
+

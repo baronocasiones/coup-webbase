@@ -54,7 +54,7 @@ async def websocket_endpoint(websocket: WebSocket, player_id: UUID):
             data = await websocket.receive_text()
             data_dict = json.loads(data)
             game_state = GameStateModel(**data_dict)
-            await game_manager.broadcast(state.json())
+            await game_manager.broadcast(game_state.dict())
 
     except WebSocketDisconnect:
         game_manager.disconnect(player_id)
