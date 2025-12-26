@@ -6,4 +6,7 @@ class PlayerModel(BaseModel):
     id: UUID
     isReady: bool
 
+    class config:
+        extra = "ignore"
+
 

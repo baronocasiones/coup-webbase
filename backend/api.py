@@ -40,24 +40,37 @@ def remove_player(user_id: UUID):
     response = [PlayerModel(id=player.id, name=player.name, isReady=player.is_ready) for player in game.players]
     return response
 
-@app.websocket('/ws/game')
+@app.websocket('/ws/lobby')
 async def websocket_endpoint(websocket: WebSocket, player_id: UUID):
     player_obj = next(filter(lambda player: player.id == player_id, game.players), None)
     player_name = player_obj.name if player_obj else None
+    players_state = [PlayerModel(
+        name=player.name, 
+        id=player.id,
+        isReady=player.is_ready
+        ).model_dump(mode='json') for player in game.players]  
     if not player_name:
         await websocket.close(code=1008, reason="Invalid player ID")
-        return
+        print("Invalid player ID")
 
-    await game_manager.connect(websocket, player_id, player_name)
+    await game_manager.connect(websocket, player_id, player_name, players_state)
     try:
         while True:
-            data = await websocket.receive_text()
-            data_dict = json.loads(data)
-            game_state = GameStateModel(**data_dict)
-            await game_manager.broadcast(game_state.dict())
+            datas = json.loads(await websocket.receive_text()) # Expecting a list of player data
+            data_action = datas.get("action")
+            response = None
+            if data_action == "disconnect":
+                 game_manager.disconnect(player_id)
+                 response = players_state
+            elif data_action == "ready":
+                response = data.get("players", [])
+            await game_manager.broadcast(player_id, response)
 
-    except WebSocketDisconnect:
+    except WebSocketDisconnect as e:
         game_manager.disconnect(player_id)
+
+    except Exception as e:
+        print(f'Error: {e}')
 
 @app.websocket('/ws/lobbyChat')
 async def lobby_chat(websocket: WebSocket, player_id: UUID):

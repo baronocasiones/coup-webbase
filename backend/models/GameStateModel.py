@@ -10,4 +10,8 @@ class GameStateModel(BaseModel):
     player_turn: Optional[UUID] = None
     declared_move: Optional[str] = None
 
+    class Config:
+        extra = "ignore"
+
+
 

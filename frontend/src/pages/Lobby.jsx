@@ -1,7 +1,7 @@
 import styles from './../styles/Lobby.module.css'
 import ChatBox from './../components/ChatBox'
 import PrimaryButton from './../components/PrimaryButton'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import axios from '../axios'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -10,49 +10,42 @@ function Lobby() {
     const location = useLocation()
     const [players, setPlayers] = useState([])
     const userId = location.state?.userId
-    const player_name = players.find(player => player.id === userId)?.name || null;
-    const GameWs = useRef(null);
+    const player_name = useMemo(() => players.find(player => player.id === userId)?.name || null)
+    const gameWs = useRef(null);
     const chatWs = useRef(null);
-
     player_name || navigate('/');
 
-    useEffect(() => {
+    
 
+    useEffect(() => {
         axios.get('/players').then(response => {
             setPlayers(response.data)
         })
 
-        GameWs.current = new WebSocket(`ws://localhost:8000/ws/game?player_id=${userId}`)
+        gameWs.current = new WebSocket(`ws://localhost:8000/ws/lobby?player_id=${userId}`)
 
-        GameWs.current.onmessage = (event) => {
+        gameWs.current.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 console.log("Received:", data);
-
-                // Validate incoming data
-                if (!data.player_id || !data.player_name) return;
-
-                setPlayers(prevPlayers => {
-                    const exists = prevPlayers.some(player => player.id === data.player_id);
-                    if (data.player_id !== userId && !exists) {
-                        return [
-                            ...prevPlayers,
-                            { name: data.player_name, id: data.player_id, ready: false }
-                        ];
-                    }
-                    return prevPlayers;
-                });
+                setPlayers(data);
             } catch (error) {
                 console.error("Failed to parse WebSocket message:", error);
             }
         };
 
-        GameWs.current.onclose = () => {
+        gameWs.current.onclose = () => {
             console.log("WebSocket disconnected")
         }
 
-        GameWs.current.onerror = (error) => {
+        gameWs.current.onerror = (error) => {
             console.error("Websocet error:", error)
+        }
+
+        return () => {
+            if (gameWs.current.readyState === WebSocket.OPEN) {
+                gameWs.current.close();
+            }
         }
 
     }, [])
@@ -73,12 +66,19 @@ function Lobby() {
     const handleDisconnect = () => {
         if (!userId) return;
 
-        axios.delete('/player', { params: { user_id: userId } }).then(response => {
-            setPlayers(response.data)
-            navigate('/');
-        }).catch(error => {
-            console.error('Error disconnecting player:', error.message)
-        })
+        axios.delete('/player', { params: { user_id: userId } })
+            .then(response => {
+                const data = response.data
+                setPlayers(data)
+                if (!gameWs.current) {
+                    console.error("Error disconnecting player");
+                }
+                gameWs.current.send(JSON.stringify(data))
+                gameWs.current.close()
+                navigate('/');
+            }).catch(error => {
+                console.error('Error disconnecting player:', error.message)
+            })
 
     }
 
