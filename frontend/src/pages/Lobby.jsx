@@ -4,8 +4,8 @@ import PrimaryButton from './../components/PrimaryButton'
 import { useEffect, useState, useRef } from 'react'
 import axios from '../axios'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getPlayers } from '../services/game'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { getPlayers, removePlayer } from '../services/game'
 
 function Lobby() {
     const queryClient = useQueryClient()
@@ -19,11 +19,11 @@ function Lobby() {
         queryKey: ['players'],
         queryFn: getPlayers
     })
-
-
-    useEffect(() => {
-        console.log('USER ID:', userId)
-    }, [userId])
+    const { mutate: removePlayerMutation } = useMutation({
+        mutationFn: removePlayer,
+        onError: (error) => console.error(error.message),
+        onSuccess: () => navigate('/')
+    })
 
     useEffect(() => {
         gameWs.current = new WebSocket(`ws://localhost:8000/ws/lobby?player_id=${userId}`)
@@ -31,7 +31,6 @@ function Lobby() {
         gameWs.current.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                console.log("Received:", data);
                 queryClient.setQueryData(['players'], data);
             } catch (error) {
                 console.error("Failed to parse WebSocket message:", error);
@@ -54,10 +53,6 @@ function Lobby() {
 
     }, [])
 
-    useEffect(() => {
-        console.log(players)
-    }, [players])
-
     const handleReady = () => {
         const userPlayer = players.find(player => player.id === userId)
         const userPlayerIndex = players.indexOf(userPlayer)
@@ -70,23 +65,9 @@ function Lobby() {
     const handleDisconnect = () => {
         if (!userId) return;
 
-        axios.delete('/player', { params: { user_id: userId } })
-            .then(response => {
-                const data = response.data
-                console.log(data)
-                queryClient.setQueryData(['players'], data)
-                if (!gameWs.current) {
-                    console.error("Error disconnecting player");
-                }
-                gameWs.current.send(JSON.stringify({
-                    action: 'disconnect',
-                    players: data
-                }))
-                navigate('/');
-            }).catch(error => {
-                console.error('Error disconnecting player:', error.message)
-            })
-
+        if(gameWs.current){
+            removePlayerMutation({playerId: userId, gameWs: gameWs.current})
+        }
     }
     if (isLoading) {
         return <div><h1>Loading...</h1></div>
@@ -104,7 +85,7 @@ function Lobby() {
                     <div className={styles.player} key={player?.id}>
                         <span className={styles.avatar}></span>
                         <div className={styles.nameContainer}>
-                            <span>{player?.name}</span>
+                            {userId === player?.id ? <span>{player?.name} (you)</span> : <span>{player?.name}</span>}
                             <span className={styles.playerState}>{player?.ready ? 'Ready' : 'Not ready'}</span>
                         </div>
                     </div>
