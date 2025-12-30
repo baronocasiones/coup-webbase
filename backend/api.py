@@ -1,6 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from utils.CoupGame import CoupGame
-from utils.Players import Players
+from utils.Player import Player
 from uuid import UUID
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,16 +27,24 @@ def get_players():
     response = [PlayerModel(id=player.id, name=player.name, isReady=player.is_ready) for player in game.players]
     return response
 
+@app.get("/player", response_model=list[PlayerModel])
+def get_player(user_id: UUID):
+    player = next(filter(lambda player: player.id == user_id, game.players), None)
+    if player:
+        response = PlayerModel(id=player.id, name=player.name, isReady=player.is_ready)
+        return response
+    return HTTPException(status_code=404, detail="Player not found")
+
 @app.post("/player", response_model=PlayerModel)
-def add_player(name: str):
-    player = Players(name)
+def add_player(player_name: str):
+    player = Player(player_name)
     game.add_player(player)
     response = PlayerModel(id=player.id, name=player.name, isReady=player.is_ready)
     return response
     
 @app.delete("/player", response_model=list[PlayerModel])
 def remove_player(user_id: UUID):
-    game.players = [player for player in game.players if player.id != user_id]
+    game.update_players_state([player for player in game.players if player.id != user_id])
     response = [PlayerModel(id=player.id, name=player.name, isReady=player.is_ready) for player in game.players]
     return response
 
@@ -53,7 +61,7 @@ async def websocket_endpoint(websocket: WebSocket, player_id: UUID):
         await websocket.close(code=1008, reason="Invalid player ID")
         print("Invalid player ID")
 
-    await game_manager.connect(websocket, player_id, player_name, players_state)
+    await game_manager.connect(websocket, player_id, players_state)
     try:
         while True:
             datas = json.loads(await websocket.receive_text()) # Expecting a list of player data

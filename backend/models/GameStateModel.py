@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from utils.Players import Players
+from utils.Player import Player
 from utils.GameState import GameState
 from uuid import UUID
 from typing import Optional

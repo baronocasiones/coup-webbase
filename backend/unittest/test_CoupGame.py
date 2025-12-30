@@ -3,15 +3,15 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils.CoupGame import CoupGame
-from utils.Players import Players
+from utils.Player import Player
 from utils.GameState import GameState
 from exceptions import PlayerInsufficientError
 
 
 def test_add_player():
     game = CoupGame()
-    player1 = Players("Alice")
-    player2 = Players("Bob")
+    player1 = Player("Alice")
+    player2 = Player("Bob")
     
     game.add_player(player1)
     game.add_player(player2)
@@ -31,9 +31,9 @@ def test_initial_game_state():
 
 def test_start_game():
     game = CoupGame()
-    player1 = Players("Alice")
-    player2 = Players("Bob")
-    player3 = Players("Charlie")
+    player1 = Player("Alice")
+    player2 = Player("Bob")
+    player3 = Player("Charlie")
     
     game.add_player(player1)
     game.add_player(player2)
@@ -46,15 +46,15 @@ def test_start_game():
 
     with pytest.raises(PlayerInsufficientError, match="Not enough players to start the game. Minimum 2 players required."):
         game_insufficient = CoupGame()
-        player1 = Players("Alice")
+        player1 = Player("Alice")
         game_insufficient.add_player(player1)
         game_insufficient.start_game()
 
 def test_handle_move():
     game = CoupGame()
-    player1 = Players("Alice")
-    player2 = Players("Bob")
-    player3 = Players("Charlie")
+    player1 = Player("Alice")
+    player2 = Player("Bob")
+    player3 = Player("Charlie")
     
     game.add_player(player1)
     game.add_player(player2)
@@ -72,9 +72,9 @@ def test_handle_move():
 
 def test_handle_challenge():
     game = CoupGame()
-    player1 = Players("Alice")
-    player2 = Players("Bob")
-    player3 = Players("Charlie")
+    player1 = Player("Alice")
+    player2 = Player("Bob")
+    player3 = Player("Charlie")
     
     game.add_player(player1)
     game.add_player(player2)

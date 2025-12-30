@@ -1,34 +1,38 @@
 import styles from './../styles/Lobby.module.css'
 import ChatBox from './../components/ChatBox'
 import PrimaryButton from './../components/PrimaryButton'
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import axios from '../axios'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getPlayers } from '../services/game'
 
 function Lobby() {
+    const queryClient = useQueryClient()
     const navigate = useNavigate()
-    const location = useLocation()
-    const [players, setPlayers] = useState([])
-    const userId = location.state?.userId
-    const player_name = useMemo(() => players.find(player => player.id === userId)?.name || null)
-    const gameWs = useRef(null);
-    const chatWs = useRef(null);
-    player_name || navigate('/');
+    const userId = queryClient.getQueryData(['userId'])
+    const username = queryClient.getQueryData(['username'])
+    const gameWs = useRef(null)
+    const chatWs = useRef(null)
+    username || navigate('/')
+    const { data: players, isLoading, isError } = useQuery({
+        queryKey: ['players'],
+        queryFn: getPlayers
+    })
 
-    
 
     useEffect(() => {
-        axios.get('/players').then(response => {
-            setPlayers(response.data)
-        })
+        console.log('USER ID:', userId)
+    }, [userId])
 
+    useEffect(() => {
         gameWs.current = new WebSocket(`ws://localhost:8000/ws/lobby?player_id=${userId}`)
 
         gameWs.current.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 console.log("Received:", data);
-                setPlayers(data);
+                queryClient.setQueryData(['players'], data);
             } catch (error) {
                 console.error("Failed to parse WebSocket message:", error);
             }
@@ -60,7 +64,7 @@ function Lobby() {
         userPlayer.ready ? userPlayer.ready = false : userPlayer.ready = true
         const updatedPlayers = [...players]
         updatedPlayers[userPlayerIndex] = userPlayer
-        setPlayers(updatedPlayers)
+        queryClient.setQueryData(['players'], updatedPlayers)
     }
 
     const handleDisconnect = () => {
@@ -69,17 +73,27 @@ function Lobby() {
         axios.delete('/player', { params: { user_id: userId } })
             .then(response => {
                 const data = response.data
-                setPlayers(data)
+                console.log(data)
+                queryClient.setQueryData(['players'], data)
                 if (!gameWs.current) {
                     console.error("Error disconnecting player");
                 }
-                gameWs.current.send(JSON.stringify(data))
-                gameWs.current.close()
+                gameWs.current.send(JSON.stringify({
+                    action: 'disconnect',
+                    players: data
+                }))
                 navigate('/');
             }).catch(error => {
                 console.error('Error disconnecting player:', error.message)
             })
 
+    }
+    if (isLoading) {
+        return <div><h1>Loading...</h1></div>
+    }
+
+    if(isError){
+        return <div><h1>Error loading players.</h1></div>
     }
 
     return (

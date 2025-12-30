@@ -1,6 +1,6 @@
 from uuid import uuid4, UUID
 
-class Players:
+class Player:
     def __init__(self, name):
         self.name: str = name
         self.id: UUID = uuid4()

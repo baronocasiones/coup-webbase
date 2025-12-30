@@ -3,10 +3,23 @@ import PrimaryButton from '../components/PrimaryButton'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from '../axios'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 function Landing() {
+    const queryClient = useQueryClient()
     const navigate = useNavigate()
     const [username, setUsername] = useState('')
+    const { mutate: addPlayer } = useMutation({
+        mutationFn: (username) => axios.post('/player', null, { params: { player_name: username } }),
+        onError: (error) => console.error(error.message),
+        onSuccess: (response) => {
+            const player = response.data
+            queryClient.setQueryData(['userId'], player.id)
+            queryClient.setQueryData(['username'], player.name)
+            navigate('/lobby')
+        }
+    })
+
 
 
     return (
@@ -16,14 +29,10 @@ function Landing() {
             </h1>
             <div className={styles.loginContainer}>
                 <h1>Welcome To Coup</h1>
-                <form className={styles.loginForm} onSubmit={(e) => {
+                <form className={styles.loginForm} onSubmit={async (e) => {
                     e.preventDefault()
-                    if (username.trim()){
-                        axios.post('/player', null, { params: { name: username.trim() }}).then(response => {
-                            navigate('/lobby', { state: { userId: response.data.id}})
-                        }).catch(error => {
-                            console.error('Error creating player:', error.message)
-                        })
+                    if (username.trim()) {
+                        addPlayer(username)
                     }
                 }}>
                     <input
