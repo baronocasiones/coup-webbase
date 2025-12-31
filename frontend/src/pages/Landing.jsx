@@ -13,9 +13,7 @@ function Landing() {
         mutationFn: (username) => axios.post('/player', null, { params: { player_name: username } }),
         onError: (error) => console.error(error.message),
         onSuccess: (response) => {
-            console.log('NIGGA')
-            navigate('/lobby', { state: { userId: response.data.id}})
-        }
+            navigate('/lobby', { state: { userId: response.data.id}}) }
     })
 
 

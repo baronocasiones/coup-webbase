@@ -20,16 +20,37 @@ function Lobby() {
     const { mutate: removePlayerMutation } = useMutation({
         mutationFn: removePlayer,
         onError: (error) => console.error(error.message),
-        onSuccess: () => navigate('/')
+        onSuccess: () => {
+            queryClient.invalidateQueries(['players'])
+            queryClient.invalidateQueries(['user'])
+            navigate('/')
+        }
     })
     const { mutate: changeReadyStateMutation } = useMutation({
-        mutationFn: changeReadyState, 
+        mutationFn: changeReadyState,
         onError: (error) => console.error(error.message),
         onSuccess: () => queryClient.invalidateQueries(['players'])
     })
 
     useEffect(() => {
-        gameWs.current = new WebSocket(`ws://localhost:8000/ws/lobby?player_id=${userId}`)
+        const handleDisconnect = (event) => {
+            event.preventDefault();
+            removePlayerMutation({ playerId: userId, gameWs: gameWs.current })
+        }
+
+        window.addEventListener('beforehand', handleDisconnect)
+        return () => {
+            window.removeEventListener('beforhand', handleDisconnect)
+        }
+    }, [])
+
+    useEffect(() => {
+        if(!isPlayersLoading && !userId){
+            navigate('/')
+        }
+        const wsHost = import.meta.env.WS_HOST || 'localhost';
+        const wsPort = import.meta.env.WS_PORT || '8000';
+        gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/lobby?player_id=${userId}`)
 
         gameWs.current.onmessage = (event) => {
             try {
@@ -45,53 +66,56 @@ function Lobby() {
         }
 
         gameWs.current.onerror = (error) => {
-            console.error("Websocet error:", error)
+            console.error("WebSocket error:", error)
         }
 
         return () => {
-            if (gameWs.current.readyState === WebSocket.OPEN) {
+            if (gameWs.current && gameWs.current.readyState === WebSocket.OPEN) {
                 gameWs.current.close();
             }
         }
 
-    }, [userId, gameWs, queryClient])
+    }, [userId, queryClient, isPlayersLoading])
 
     const handleReady = () => {
         const userPlayer = players.find(player => player.id === userId)
         userPlayer.isReady ? userPlayer.isReady = false : userPlayer.isReady = true
-        if(gameWs.current){
-            changeReadyStateMutation({playerId: userId, gameWs: gameWs.current, newReadyState: userPlayer.isReady})
+        if (gameWs.current) {
+            changeReadyStateMutation({ playerId: userId, gameWs: gameWs.current, newReadyState: userPlayer.isReady })
         }
     }
 
     const handleDisconnect = () => {
         if (!userId) return;
 
-        if(gameWs.current){
-            removePlayerMutation({playerId: userId, gameWs: gameWs.current})
+        if (gameWs.current) {
+            removePlayerMutation({ playerId: userId, gameWs: gameWs.current })
         }
     }
     if (isPlayersLoading) {
         return <div><h1>Loading...</h1></div>
     }
 
-    if(isPlayersError){
+    if (isPlayersError) {
+        setTimeout(() => navigate('/'), 3000)
         return <div><h1>Error loading players.</h1></div>
     }
 
     return (
         <div className={styles.lobbyContainer}>
             <div className={styles.playerListContainer}>
-                <h2>Players</h2>
-                {players.map((player) => (
-                    <div className={styles.player} key={player?.id}>
-                        <span className={styles.avatar}></span>
-                        <div className={styles.nameContainer}>
-                            {userId === player?.id ? <span>{player?.name} (you)</span> : <span>{player?.name}</span>}
-                            <span className={styles.playerState}>{player?.isReady ? 'Ready' : 'Not ready'}</span>
+                <div style={{ maxHeight: '269px', overflowY: 'scroll'}}>
+                    <h2>Players</h2>
+                    {players.map((player) => (
+                        <div className={styles.player} key={player?.id}>
+                            <span className={styles.avatar}></span>
+                            <div className={styles.nameContainer}>
+                                {userId === player?.id ? <span>{player?.name} (you)</span> : <span>{player?.name}</span>}
+                                <span className={styles.playerState}>{player?.isReady ? 'Ready' : 'Not ready'}</span>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
                 <div className={styles.gameSettings}>
                     <h2>Game Settings</h2>
                     <div className={styles.settingContainer}>
@@ -116,7 +140,7 @@ function Lobby() {
             </div>
             <div>
                 <ChatBox header="Lobby Chat" />
-                <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden', marginBottom: '16px', flexDirection: 'column', rowGap: '1rem' }}>
+                <div style={{ padding: '1rem', display: 'flex', alignItems: 'center', overflow: 'hidden', marginBottom: '16px', flexDirection: 'column', rowGap: '1rem' }}>
                     <PrimaryButton text="Ready" width='85%' onClick={handleReady} />
                     <PrimaryButton text="Leave Lobby" width='85%' backgroundColor='rgba(255, 255, 255, 0.098)' onClick={handleDisconnect} />
                 </div>
