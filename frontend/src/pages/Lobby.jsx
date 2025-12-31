@@ -2,20 +2,18 @@ import styles from './../styles/Lobby.module.css'
 import ChatBox from './../components/ChatBox'
 import PrimaryButton from './../components/PrimaryButton'
 import { useEffect, useState, useRef } from 'react'
-import axios from '../axios'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { getPlayers, removePlayer } from '../services/game'
+import { getPlayers, removePlayer, changeReadyState } from '../services/game'
 
 function Lobby() {
     const queryClient = useQueryClient()
     const navigate = useNavigate()
-    const userId = queryClient.getQueryData(['userId'])
-    const username = queryClient.getQueryData(['username'])
+    const location = useLocation()
+    const userId = location.state?.userId || null
     const gameWs = useRef(null)
     const chatWs = useRef(null)
-    username || navigate('/')
-    const { data: players, isLoading, isError } = useQuery({
+    const { data: players, isLoading: isPlayersLoading, isError: isPlayersError } = useQuery({
         queryKey: ['players'],
         queryFn: getPlayers
     })
@@ -23,6 +21,11 @@ function Lobby() {
         mutationFn: removePlayer,
         onError: (error) => console.error(error.message),
         onSuccess: () => navigate('/')
+    })
+    const { mutate: changeReadyStateMutation } = useMutation({
+        mutationFn: changeReadyState, 
+        onError: (error) => console.error(error.message),
+        onSuccess: () => queryClient.invalidateQueries(['players'])
     })
 
     useEffect(() => {
@@ -51,15 +54,14 @@ function Lobby() {
             }
         }
 
-    }, [])
+    }, [userId, gameWs, queryClient])
 
     const handleReady = () => {
         const userPlayer = players.find(player => player.id === userId)
-        const userPlayerIndex = players.indexOf(userPlayer)
-        userPlayer.ready ? userPlayer.ready = false : userPlayer.ready = true
-        const updatedPlayers = [...players]
-        updatedPlayers[userPlayerIndex] = userPlayer
-        queryClient.setQueryData(['players'], updatedPlayers)
+        userPlayer.isReady ? userPlayer.isReady = false : userPlayer.isReady = true
+        if(gameWs.current){
+            changeReadyStateMutation({playerId: userId, gameWs: gameWs.current, newReadyState: userPlayer.isReady})
+        }
     }
 
     const handleDisconnect = () => {
@@ -69,11 +71,11 @@ function Lobby() {
             removePlayerMutation({playerId: userId, gameWs: gameWs.current})
         }
     }
-    if (isLoading) {
+    if (isPlayersLoading) {
         return <div><h1>Loading...</h1></div>
     }
 
-    if(isError){
+    if(isPlayersError){
         return <div><h1>Error loading players.</h1></div>
     }
 
@@ -86,7 +88,7 @@ function Lobby() {
                         <span className={styles.avatar}></span>
                         <div className={styles.nameContainer}>
                             {userId === player?.id ? <span>{player?.name} (you)</span> : <span>{player?.name}</span>}
-                            <span className={styles.playerState}>{player?.ready ? 'Ready' : 'Not ready'}</span>
+                            <span className={styles.playerState}>{player?.isReady ? 'Ready' : 'Not ready'}</span>
                         </div>
                     </div>
                 ))}

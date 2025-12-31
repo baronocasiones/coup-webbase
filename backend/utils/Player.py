@@ -9,6 +9,9 @@ class Player:
         self.websocket: WebSocket
         self.is_ready: bool = False
 
+    def toggle_ready(self) -> None:
+        self.is_ready = not self.is_ready
+
     def change_name(self, new_name: str) -> None:
         self.name = new_name
 

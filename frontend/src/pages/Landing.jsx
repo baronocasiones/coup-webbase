@@ -13,10 +13,8 @@ function Landing() {
         mutationFn: (username) => axios.post('/player', null, { params: { player_name: username } }),
         onError: (error) => console.error(error.message),
         onSuccess: (response) => {
-            const player = response.data
-            queryClient.setQueryData(['userId'], player.id)
-            queryClient.setQueryData(['username'], player.name)
-            navigate('/lobby')
+            console.log('NIGGA')
+            navigate('/lobby', { state: { userId: response.data.id}})
         }
     })
 
@@ -29,7 +27,7 @@ function Landing() {
             </h1>
             <div className={styles.loginContainer}>
                 <h1>Welcome To Coup</h1>
-                <form className={styles.loginForm} onSubmit={async (e) => {
+                <form className={styles.loginForm} onSubmit={(e) => {
                     e.preventDefault()
                     if (username.trim()) {
                         addPlayer(username)

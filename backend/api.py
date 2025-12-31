@@ -48,6 +48,18 @@ def remove_player(user_id: UUID):
     response = [PlayerModel(id=player.id, name=player.name, isReady=player.is_ready) for player in game.players]
     return response
 
+@app.patch("/player", response_model=list[PlayerModel])
+def update_players_state(target_player_id: UUID, new_ready_state: bool):
+    for player in game.players:
+        if player.id == target_player_id:
+            player.toggle_ready()
+            if player.is_ready != new_ready_state:
+                raise HTTPException(status_code=400, detail="Synchronization error")
+
+            game.update_players_state(update_player=player)
+    response = [PlayerModel(id=player.id, name=player.name, isReady=player.is_ready) for player in game.players]
+    return response
+
 @app.websocket('/ws/lobby')
 async def websocket_endpoint(websocket: WebSocket, player_id: UUID):
     player_obj = next(filter(lambda player: player.id == player_id, game.players), None)
@@ -65,34 +77,14 @@ async def websocket_endpoint(websocket: WebSocket, player_id: UUID):
     try:
         while True:
             datas = json.loads(await websocket.receive_text()) # Expecting a list of player data
-            data_action = datas.get("action")
-            response = None
+            data_action = datas.get("action", None)
+            players_state = datas.get("players", None)
             if data_action == "disconnect":
-                 game_manager.disconnect(player_id)
-                 response = players_state
-            elif data_action == "ready":
-                response = data.get("players", [])
-            await game_manager.broadcast(player_id, response)
+                game_manager.disconnect(player_id)
+            await game_manager.broadcast(player_id, players_state)
 
     except WebSocketDisconnect as e:
         game_manager.disconnect(player_id)
 
     except Exception as e:
         print(f'Error: {e}')
-
-@app.websocket('/ws/lobbyChat')
-async def lobby_chat(websocket: WebSocket, player_id: UUID):
-    player_obj = next(filter(lambda player: player.id == player_id, game.players), None)
-    player_name = player_obj.name if player_obj else None
-    if not player_name:
-        await websocket.close(code=1008, reason="Invalid player ID")
-        return
-
-    await chat_manager.connect(websocket, player_id, player_name)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await chat_manager.broadcast({"player": player_name, "message": data})
-
-    except WebSocketDisconnect:
-        chat_manager.disconnect(player_id)
