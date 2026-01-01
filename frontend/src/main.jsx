@@ -1,17 +1,19 @@
-import { StrictMode } from 'react'
+import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/index.css'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import Landing from './pages/Landing.jsx'
-import Lobby from './pages/Lobby.jsx'
-import PlayRoom from './pages/PlayRoom.jsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import Loader from './components/Loader.jsx'
+
+const Landing = lazy(() => import('./pages/Landing.jsx'))
+const Lobby = lazy(() => import('./pages/Lobby.jsx'))
+const PlayRoom = lazy(() => import('./pages/PlayRoom.jsx'))
 
 const router = createBrowserRouter([
-    { path: '/', element: <Landing /> },
-    { path: '/lobby', element: <Lobby /> },
-    { path: '/playroom', element: <PlayRoom /> }
+    { path: '/', element: <Suspense fallback={<Loader/>}><Landing/></Suspense> },
+    { path: '/lobby', element: <Suspense fallback={<Loader/>}><Lobby/></Suspense > },
+    { path: '/playroom', element: <Suspense fallback={<Loader/>}><PlayRoom/></Suspense > },
 ])
 
 const queryClient = new QueryClient()

@@ -35,28 +35,30 @@ function ChatBox({ header, withSubmission = true }) {
     useEffect(() => {
         const wsHost = import.meta.env.WS_HOST || 'localhost';
         const wsPort = import.meta.env.WS_PORT || '8000';
-        chatWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/chat?user_id=${userId}`)
+        if(userId && withSubmission){
+            chatWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/chat?user_id=${userId}`)
 
-        chatWs.current.onmessage = (event) => {
-            try {
-                const chats = JSON.parse(event.data)
+            chatWs.current.onmessage = (event) => {
+                try {
+                    const chats = JSON.parse(event.data)
 
-                queryClient.setQueryData(['chatMessages'], chats)
-            } catch (error) {
-                console.error('Error parsing WebSocket message:', error)
+                    queryClient.setQueryData(['chatMessages'], chats)
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error)
+                }
             }
-        }
 
-        chatWs.onopen = () => {
-            console.log('Chat WebSocket connection established')
-        }
+            chatWs.onopen = () => {
+                console.log('Chat WebSocket connection established')
+            }
 
-        chatWs.current.onclose = () => {
-            console.log('Chat WebSocket connection closed')
-        }
+            chatWs.current.onclose = () => {
+                console.log('Chat WebSocket connection closed')
+            }
 
-        chatWs.current.onerror = (error) => {
-            console.error('Chat WebSocket error:', error)
+            chatWs.current.onerror = (error) => {
+                console.error('Chat WebSocket error:', error)
+            }
         }
 
         return () => {
