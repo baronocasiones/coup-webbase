@@ -9,7 +9,7 @@ function ChatBox({ header, withSubmission = true }) {
     const inputRef = useRef()
     const userId = sessionStorage.getItem('userId')
     const chatContainerRef = useRef()
-    const chatWs = useRef()
+    const chatWs = useRef(null)
     const { data: messageDatas, isLoading } = useQuery({
         queryKey: ['chatMessages'],
         queryFn: getChatMessages,
@@ -39,10 +39,15 @@ function ChatBox({ header, withSubmission = true }) {
         chatWs.current.onmessage = (event) => {
             try {
                 const chats = JSON.parse(event.data)
-                queryClient.setQueryData(['chatmessages'], chats)
+
+                queryClient.setQueryData(['chatMessages'], chats)
             } catch (error) {
                 console.error('Error parsing WebSocket message:', error)
             }
+        }
+
+        chatWs.onopen = () => {
+            console.log('Chat WebSocket connection established')
         }
 
         chatWs.current.onclose = () => {
@@ -54,11 +59,11 @@ function ChatBox({ header, withSubmission = true }) {
         }
 
         return () => {
-            if (chatWs.current) {
+            if (chatWs.current && chatWs.current.readyState === WebSocket.OPEN) {
                 chatWs.current.close()
             }
         }
-    }, [userId])
+    }, [userId, queryClient])
 
 
     return (
@@ -78,6 +83,10 @@ function ChatBox({ header, withSubmission = true }) {
                     const message = inputRef.current.value
                     const userId = sessionStorage.getItem('userId')
                     const username = sessionStorage.getItem('username')
+                    if(!chatWs.current){
+                        console.error('Chat WebSocket is not connected.')
+                        return
+                    }
                     sendChatMutation({ userId, username, message, chatWs: chatWs.current })
                     inputRef.current.value = ''
                 }}>

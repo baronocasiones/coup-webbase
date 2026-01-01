@@ -20,6 +20,7 @@ class ConnectionManager:
         self.active_connections.pop(player_id, None)
 
     async def broadcast(self, sender: UUID, message: dict): 
+        print("MESSAGE:", message)
         for id, connection in self.active_connections.items():
             if id != sender:
                 await connection.send_json(message)
