@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { getPlayers, removePlayer, changeReadyState } from '../services/player'
+import Loader from '../components/Loader'
 
 function Lobby() {
     const queryClient = useQueryClient()
@@ -98,7 +99,7 @@ function Lobby() {
         }
     }
     if (isPlayersLoading) {
-        return <div><h1>Loading...</h1></div>
+        return <Loader/>
     }
 
     if (isPlayersError) {
