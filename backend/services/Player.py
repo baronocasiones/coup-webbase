@@ -7,10 +7,10 @@ class Player:
         self.cards: list[str] = []
         self.coins: int = 2
         self.websocket: WebSocket
-        self.is_ready: bool = False
+        self.isReady: bool = False
 
     def toggle_ready(self) -> None:
-        self.is_ready = not self.is_ready
+        self.isReady = not self.isReady
 
     def change_name(self, new_name: str) -> None:
         self.name = new_name

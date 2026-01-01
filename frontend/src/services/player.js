@@ -29,7 +29,7 @@ export async function changeReadyState({playerId, gameWs, newReadyState}){
             players: data
         }))
     } catch(error){
-        console.error(error.message)
+        console.error(error.response.data.detail)
     }
 }
 

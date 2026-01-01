@@ -54,6 +54,6 @@
 
 .lobbyContainer {
     display: flex;
-    column-gap: 32px;
+    column-gap: 8em;
     justify-content: space-between;
 }

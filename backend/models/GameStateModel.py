@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from utils.Player import Player
-from utils.GameState import GameState
+from services.Player import Player
+from services.GameState import GameState
 from uuid import UUID
 from typing import Optional
 

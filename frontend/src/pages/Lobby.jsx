@@ -4,18 +4,17 @@ import PrimaryButton from './../components/PrimaryButton'
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { getPlayers, removePlayer, changeReadyState } from '../services/game'
+import { getPlayers, removePlayer, changeReadyState } from '../services/player'
 
 function Lobby() {
     const queryClient = useQueryClient()
     const navigate = useNavigate()
-    const location = useLocation()
-    const userId = location.state?.userId || null
+    const userId = sessionStorage.getItem('userId')
     const gameWs = useRef(null)
-    const chatWs = useRef(null)
     const { data: players, isLoading: isPlayersLoading, isError: isPlayersError } = useQuery({
         queryKey: ['players'],
-        queryFn: getPlayers
+        queryFn: getPlayers,
+        refetchOnWindowFocus: false
     })
     const { mutate: removePlayerMutation } = useMutation({
         mutationFn: removePlayer,
@@ -32,10 +31,18 @@ function Lobby() {
         onSuccess: () => queryClient.invalidateQueries(['players'])
     })
 
+
     useEffect(() => {
+        if (!isPlayersLoading && !userId) {
+            navigate('/')
+        }
         const handleDisconnect = (event) => {
             event.preventDefault();
+            if (gameWs.current) {
+                gameWs.current.close()
+            }
             removePlayerMutation({ playerId: userId, gameWs: gameWs.current })
+            sessionStorage.clear()
         }
 
         window.addEventListener('beforehand', handleDisconnect)
@@ -45,17 +52,14 @@ function Lobby() {
     }, [])
 
     useEffect(() => {
-        if(!isPlayersLoading && !userId){
-            navigate('/')
-        }
         const wsHost = import.meta.env.WS_HOST || 'localhost';
         const wsPort = import.meta.env.WS_PORT || '8000';
-        gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/lobby?player_id=${userId}`)
+        gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/lobby?user_id=${userId}`)
 
         gameWs.current.onmessage = (event) => {
             try {
-                const data = JSON.parse(event.data);
-                queryClient.setQueryData(['players'], data);
+                const players = JSON.parse(event.data);
+                queryClient.setQueryData(['players'], players);
             } catch (error) {
                 console.error("Failed to parse WebSocket message:", error);
             }
@@ -67,6 +71,7 @@ function Lobby() {
 
         gameWs.current.onerror = (error) => {
             console.error("WebSocket error:", error)
+            navigate('/')
         }
 
         return () => {
@@ -104,8 +109,8 @@ function Lobby() {
     return (
         <div className={styles.lobbyContainer}>
             <div className={styles.playerListContainer}>
-                <div style={{ maxHeight: '269px', overflowY: 'scroll'}}>
-                    <h2>Players</h2>
+                <h2>Players</h2>
+                <div style={{ height: '269px', overflowY: 'scroll' }}>
                     {players.map((player) => (
                         <div className={styles.player} key={player?.id}>
                             <span className={styles.avatar}></span>
@@ -140,7 +145,7 @@ function Lobby() {
             </div>
             <div>
                 <ChatBox header="Lobby Chat" />
-                <div style={{ padding: '1rem', display: 'flex', alignItems: 'center', overflow: 'hidden', marginBottom: '16px', flexDirection: 'column', rowGap: '1rem' }}>
+                <div style={{ paddingTop: '1rem', display: 'flex', alignItems: 'center', overflow: 'hidden', marginBottom: '16px', flexDirection: 'column', rowGap: '1rem' }}>
                     <PrimaryButton text="Ready" width='85%' onClick={handleReady} />
                     <PrimaryButton text="Leave Lobby" width='85%' backgroundColor='rgba(255, 255, 255, 0.098)' onClick={handleDisconnect} />
                 </div>
