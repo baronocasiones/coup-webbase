@@ -3,6 +3,7 @@ import PrimaryButton from './PrimaryButton'
 import { useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getChatMessages, addChatMessage } from '../services/chat'
+import ChatBoxSkeleton from './ChatBoxSkeleton'
 
 function ChatBox({ header, withSubmission = true }) {
     const queryClient = useQueryClient()
@@ -26,7 +27,7 @@ function ChatBox({ header, withSubmission = true }) {
     })
 
     useEffect(() => {
-        if(!chatContainerRef.current) return
+        if (!chatContainerRef.current) return
 
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }, [messageDatas])
@@ -70,12 +71,18 @@ function ChatBox({ header, withSubmission = true }) {
         <div className={styles.chatBoxContainer}>
             <h2>{header}</h2>
             <div className={styles.chats} ref={chatContainerRef}>
-                {messageDatas && messageDatas.map((messageData, index) => (
-                    <div key={index} style={userId == messageData.userId ? {textAlign: 'right'} : null}>
-                        <div className={styles.senderName}>{messageData.sender_username}</div>
-                        <div className={styles.message}>{messageData.message}</div>
-                    </div>
-                ))}
+                {isLoading && <ChatBoxSkeleton />}
+                {!isLoading && messageDatas.length === 0 && (
+                    <div className={styles.message}>No messages yet.</div>
+                )}
+                {!isLoading && messageDatas.length > 0 && (
+                    messageDatas.map((messageData, index) => (
+                        <div key={index} style={userId == messageData.userId ? { textAlign: 'right' } : null}>
+                            <div className={styles.senderName}>{messageData.sender_username}</div>
+                            <div className={styles.message}>{messageData.message}</div>
+                        </div>
+                    )))
+                }
             </div>
             {withSubmission && (
                 <form className={styles.chatInputContainer} onSubmit={(e) => {
@@ -83,7 +90,7 @@ function ChatBox({ header, withSubmission = true }) {
                     const message = inputRef.current.value
                     const userId = sessionStorage.getItem('userId')
                     const username = sessionStorage.getItem('username')
-                    if(!chatWs.current){
+                    if (!chatWs.current) {
                         console.error('Chat WebSocket is not connected.')
                         return
                     }
