@@ -87,9 +87,7 @@ function PlayRoom() {
                             </div>
                         </div>
                     </div>
-                    <div>
-                        <ChatBox header="Game Log" withSubmission={false} />
-                    </div>
+                    <ChatBox header="Game Log" withSubmission={false} />
                 </div>
             </div>
             <div className={styles.userUIContainer}>
