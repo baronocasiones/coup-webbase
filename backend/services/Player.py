@@ -8,6 +8,7 @@ class Player:
         self.coins: int = 2
         self.websocket: WebSocket
         self.isReady: bool = False
+        self.default_moves: list[str] = ["income", "foreign_aid", "coup"]
 
     def toggle_ready(self) -> None:
         self.isReady = not self.isReady

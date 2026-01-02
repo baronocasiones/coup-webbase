@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from services.CoupGame import CoupGame
 from services.Player import Player
 from services.GameState import GameState
-from services.exceptions import PlayerInsufficientError
+from utils.exceptions import PlayerInsufficientError
 
 
 def test_add_player():
