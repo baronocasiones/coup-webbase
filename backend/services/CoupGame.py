@@ -147,10 +147,11 @@ class CoupGame:
     def get_challenge_loser(self, challenger_id: UUID) -> UUID:
         if not isinstance(challenger_id, UUID):
             raise ValueError('challenger_id should be a type UUID')
-        if not self.state == GameState.ACTION_DECLARED or not self.state == GameState.BLOCK_DECLARED:
-            raise SynchronizationError('Player cannot challenge in this time.')
         if self.declared_move in [GameAction.INCOME, GameAction.COUP]:
             raise ValueError("Declared move cannot be challenged.")
+
+        if self.state not in [GameState.ACTION_DECLARED, GameState.BLOCK_DECLARED]:
+            raise SynchronizationError('Player cannot challenge in this time.')
 
         current_player: Player = self.players[self.current_player_index]
         challenger_player: Player = self.get_player(challenger_id)

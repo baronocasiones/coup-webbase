@@ -17,6 +17,11 @@ class Player:
                 ]
         self.is_lying: bool = False
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Player):
+            return NotImplemented
+        return self.id == other.id
+
     def toggle_ready(self) -> None:
         self.isReady = not self.isReady
 
