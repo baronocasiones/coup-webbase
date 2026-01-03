@@ -1,5 +1,5 @@
 from uuid import uuid4, UUID
-from .GameActions import GameActions
+from .GameAction import GameAction
 from .Influence import Influence
 
 class Player:
@@ -10,10 +10,10 @@ class Player:
         self.coins: int = 2
         self.websocket: WebSocket
         self.isReady: bool = False
-        self.moves: list[GameActions] = [
-                GameActions.INCOME,
-                GameActions.FOREIGN_AID,
-                GameActions.COUP
+        self.moves: list[GameAction] = [
+                GameAction.INCOME,
+                GameAction.FOREIGN_AID,
+                GameAction.COUP
                 ]
         self.is_lying: bool = False
 

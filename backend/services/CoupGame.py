@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 from utils import globals
 from services.GameAction import GameAction
-from services.BlockMoves import BlockMoves
+from services.BlockMove import BlockMove
 from services.Card import Card
 
 class CoupGame:
@@ -98,7 +98,7 @@ class CoupGame:
             player.add_card(self.available_cards.draw_card())
 
     # process player moves, challenges, and game state transitions | Decleration only (not execution of the move)
-    def declare_move(self, player_id: UUID, move: GameAction | BlockMoves) -> None:
+    def declare_move(self, player_id: UUID, move: GameAction | BlockMove) -> None:
         """
         Handle a player's declared move.
         Raises:
@@ -113,12 +113,12 @@ class CoupGame:
         if isinstance(move, GameAction) and current_player.id != player_id:
             raise SynchronizationError("It's not this player's turn.")
 
-        if isinstance(move, BlockMoves) and current_player.id == player_id:
+        if isinstance(move, BlockMove) and current_player.id == player_id:
             raise SynchronizationError("Current player cannot block their own move.")
 
         if isinstance(move, GameAction):
             self.state = GameState.ACTION_DECLARED
-        elif isinstance(move, BlockMoves):
+        elif isinstance(move, BlockMove):
             self.state = GameState.ACTION_DECLARED
         else:
             raise ValueError("Invalid move type.")
@@ -182,12 +182,14 @@ class CoupGame:
 
     def next_turn(self) -> None:
         """
-        Advance to the next player's turn and reset the game state.
+        Advance to the next player's turn and reset the game and players state.
         """
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
         self.state = GameState.WAITING_FOR_ACTION
         self.declared_move = None
         self.challenge_loser = None
+        for player in self.players:
+            player.is_lying = False
 
     # execute the declared move after challenges are resolved
     def execute_move(self) -> None:

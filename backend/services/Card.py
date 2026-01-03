@@ -2,9 +2,8 @@ from .Influence import Influence
 import random
 
 class Card:
-    self.card_stack = []
-
     def __init__(self):
+        self.card_stack = []
         for influence in Influence:
             for _ in range(3):  # Assuming 3 copies of each card
                 self.card_stack.append(influence)
