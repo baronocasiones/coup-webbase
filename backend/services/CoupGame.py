@@ -7,23 +7,24 @@ from datetime import datetime
 from utils import globals
 from services.GameAction import GameAction
 from services.BlockMoves import BlockMoves
+from services.Card import Card
 
 class CoupGame:
     def __init__(self):
+        self.available_cards: Card = Card()
         self.players: list[Player] = []
         self.game_id: UUID = uuid4()
         self.move_logs: list[Logs] = []
         self.state: GameState = GameState.WAITING_FOR_PLAYERS
         self.chats: list[dict] = []
 
-        # Current turn state
+        # Current turn state 
         self.current_player_index: int = 0
-        self.declared_move: Optional[PlayerAction] = None
+        self.declared_move: PlayerAction | None = None
         
-        # Challenge state
-        self.challenger_id: Optional[UUID] = None
         # self.players_who_can_challenge: List[UUID] = [] # not yet sure if needed
-        self.players_blocking: UUID = []  # For block actions
+        # Challenge state
+        self.challenge_loser: Player | None = None
 
     def add_chat(self, chat_message: dict) -> None:
         """
@@ -78,18 +79,6 @@ class CoupGame:
             if player.id == player_id:
                 return player
         raise ValueError("Player not found")
-
-    # generate starting cards for players
-    # TODO: need better logic
-    def generate_starting_cards(self) -> List[Card]:
-         """Generate starting cards for a player"""
-        return [
-            Card(character=Character.CONTESSA),
-            Card(character=Character.DUKE)
-            Card(character=Character.ASSASSIN),
-            Card(character=Character.CAPTAIN),
-            Card(character=Character.AMBASSADOR)
-        ]
         
     # start the game when there are 2 or more players in the lobby/room (min 2, max 6)
     def start_game(self) -> None:
@@ -104,6 +93,9 @@ class CoupGame:
                 f"Not enough players to start the game. Minimum {globals.MIN_PLAYERS} players required."
             )
         self.state = GameState.WAITING_FOR_ACTION
+        for player in self.players:
+            player.add_card(self.available_cards.draw_card())
+            player.add_card(self.available_cards.draw_card())
 
     # process player moves, challenges, and game state transitions | Decleration only (not execution of the move)
     def declare_move(self, player_id: UUID, move: GameAction | BlockMoves) -> None:
@@ -134,21 +126,68 @@ class CoupGame:
         self.declared_move = move
 
     # process challenges to declared moves
-    def handle_challenge(self):
-        pass
+    def handle_challenge(self, card_to_remove: int) -> None:
+        """
+        Handle the challenge resolution.
+        Raises:
+            SynchronizationError: If the game is not in a state to handle challenges.
+        """
+        if self.state != GameState.CHALLENGE_HANDLE:
+            raise SynchronizationError("Game is not in a state to handle challenges.")
+
+        if self.challenge_loser is None:
+            raise ValueError("No challenge loser set.")
+
+        # Remove the challenged card from the loser
+        self.challenge_loser.remove_card(card_to_remove)
+
+        # Reset challenge state
+        self.next_turn()
 
     def get_challenge_loser(self, challenger_id: UUID) -> UUID:
         if not isinstance(challenger_id, UUID):
             raise ValueError('challenger_id should be a type UUID')
         if not self.state == GameState.ACTION_DECLARED or not self.state == GameState.BLOCK_DECLARED:
             raise SynchronizationError('Player cannot challenge in this time.')
+        if self.declared_move in [GameAction.INCOME, GameAction.COUP]:
+            raise ValueError("Declared move cannot be challenged.")
 
         current_player: Player = self.players[self.current_player_index]
+        challenger_player: Player = self.get_player(challenger_id)
+
+        if challenger_player is None:
+            raise ValueError("Challenger player not found.")
+
+        if self.declared_move not in current_player.moves:
+            current_player.is_lying = True
+
         self.state = GameState.CHALLENGE_HANDLE
         if current_player.is_lying:
+            self.challenge_loser = current_player
             return current_player.id
         else:
+            self.challenge_loser = challenger_player
             return challenger_id
+
+    def handle_no_challenge(self) -> None:
+        """
+        Handle the scenario where no challenge is made against the declared move.
+        """
+        if self.state not in [GameState.ACTION_DECLARED, GameState.BLOCK_DECLARED]:
+            raise SynchronizationError("Cannot proceeed without a declared move.")
+
+        # Proceed to execute the declared move
+        self.execute_move()
+        self.next_turn()
+
+    def next_turn(self) -> None:
+        """
+        Advance to the next player's turn and reset the game state.
+        """
+        self.current_player_index = (self.current_player_index + 1) % len(self.players)
+        self.state = GameState.WAITING_FOR_ACTION
+        self.declared_move = None
+        self.challenge_loser = None
 
     # execute the declared move after challenges are resolved
     def execute_move(self) -> None:

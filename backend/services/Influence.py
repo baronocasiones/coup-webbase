@@ -13,4 +13,6 @@ class Influence(Enum):
     AMBASSADOR = [GameAction.EXCHANGE, BlockMoves.BLOCK_STEALING]
     CONTESSA = [GameAction.BLOCK_ASSASSINATION]
 
+    def get_actions(self) -> list:
+        return self.value
 

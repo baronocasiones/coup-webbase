@@ -1,7 +1,7 @@
 from .Influence import Influence
 import random
 
-class Cards:
+class Card:
     self.card_stack = []
 
     def __init__(self):
@@ -11,7 +11,7 @@ class Cards:
 
         random.shuffle(self.card_stack)
 
-    def draw_card(self):
+    def draw_card(self) -> Influence | None:
         if self.card_stack:
             return self.card_stack.pop()
         else:
