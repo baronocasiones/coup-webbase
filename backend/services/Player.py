@@ -9,6 +9,7 @@ class Player:
         self.websocket: WebSocket
         self.isReady: bool = False
         self.default_moves: list[str] = ["income", "foreign_aid", "coup"]
+        self.is_lying: bool = False
 
     def toggle_ready(self) -> None:
         self.isReady = not self.isReady

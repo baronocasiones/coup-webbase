@@ -1,6 +1,6 @@
 from enum import Enum
 
-class GameActions(Enum):
+class GameAction(Enum):
     INCOME = 'INCOME'
     FOREIGN_AID = 'FOREIGN AID'
     COUP = 'COUP'
@@ -9,7 +9,7 @@ class GameActions(Enum):
     STEAL = 'STEAL'
     EXCHANGE = 'EXCHANGE'
     BLOCK_FOREIGN_AID = 'BLOCK FOREIGN AID'
-    BLCOK_ASSASSINATION = 'BLOCK ASSASSINATION'
-    BLOCK_STEAL = 'BLOCK STEAL'
+    BLOCK_ASSASSINATION = 'BLOCK ASSASSINATION'
+    BLOCK_STEALING = 'BLOCK STEALING'
 
      
