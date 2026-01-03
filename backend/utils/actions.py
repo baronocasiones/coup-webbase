@@ -1,29 +1,45 @@
 from typing import Lists, Callable
-from models.players import Players
+from services.Player import Player
+from services.Influence import Influence
+
+
+def income(player: Player) -> None:
+    player.coins += 1
+
+def foreign_aid(player: Player) -> None:
+    player.coins += 2
+
+def coup(attacker: Player, target: Player) -> list[Influence]:
+    if attacker.coins < 7:
+        valueError("Player don't have enough coins to perform coup")
+    if len(target.cards) == 0:
+        valueError("Target don't have any cards")
+    return target.cards
 
 # DUKE - Tax
-def tax(player: Players) -> None:
+def tax(player: Player) -> None:
     player.coins += 3
 
 # ASSASSIN - Assassinate
-def assassinate(attacker: Players, target: Players) -> str | None:
+def assassinate(attacker: Player, target: Player) -> list[Influence]:
     if attacker.coins < 3:
         raise ValueError("Not enough coins to assassinate.")
     attacker.coins -= 3
     if not target.cards:
-        return None
-    return target.cards.pop()
+        raise ValueError("Target has no cards to lose.")
+    return target.cards
     
 # CAPTAIN - Steal
-def steal(thief: Players, target: Players) -> int:
+def steal(thief: Player, target: Player) -> None:
+    if target.coins == 0:
+        raise ValueError('There is nothing to steal from the traget')
     stolen = min(2, target.coins)
     target.coins -= stolen
     thief.coins += stolen
-    return stolen
 
 # AMBASSADOR — Exchange
 '''def exchange(
-    player: Players,
+    player: Player,
     court_deck: List[str],
     choose_fn: Callable[[List[str]], List[str]],) -> None: #chooses which cards to keep
     if len(court_deck) < 2:
