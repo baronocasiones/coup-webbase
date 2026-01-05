@@ -33,6 +33,17 @@ class Player:
         self.cards.append(card)
 
     def remove_card(self, card_index: int) -> None:
+        """
+        Removes a card at the specified index from the player's hand,
+        and removes all associated actions from the player's available moves.
+        Raises IndexError if the index is out of range.
+        """
         if 0 <= card_index < len(self.cards):
+            influence = self.cards[card_index]
+            influence_actions = influence.get_actions()
+            # Use set operations for efficient removal
+            self.moves = [action for action in self.moves if action not in influence_actions]
             self.cards.pop(card_index)
+        else:
+            raise IndexError("Index given is out of card range")
 

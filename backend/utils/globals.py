@@ -6,3 +6,5 @@ COUP_COST = 7
 ASSASSINATION_COST = 3
 COUP_THRESHOLD = 10  # Forced to coup at this coin amount
 TREASUREY_COINS = 50
+EXCHANGE_DRAW = 2
+

@@ -38,22 +38,11 @@ def steal(thief: Player, target: Player) -> None:
     thief.coins += stolen
 
 # AMBASSADOR — Exchange
-'''def exchange(
-    player: Player,
-    court_deck: List[str],
-    choose_fn: Callable[[List[str]], List[str]],) -> None: #chooses which cards to keep
-    if len(court_deck) < 2:
-        raise ValueError("Not enough cards in the Court deck.")
+def exchange(player: Player, new_card: Influence, index_to_replace: int) -> None: 
+    player.remove_card(index_to_replace)
+    player.add_card(new_card)
 
-    drawn = [court_deck.pop(), court_deck.pop()]
-    options = player.cards + drawn
 
-    chosen = choose_fn(options)
 
-    if len(chosen) != len(player.cards):
-        raise ValueError("Must keep the same number of cards.")
 
-    player.cards = chosen
 
-    returned = [card for card in options if card not in chosen]
-    court_deck.extend(returned)'''
