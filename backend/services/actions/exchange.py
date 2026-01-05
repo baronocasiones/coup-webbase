@@ -1,6 +1,7 @@
 from services.actions.base import BaseActionStrategy
 from services.CoupGame import CoupGame
 from services.Influence import Influence
+from services.Card import Card
 
 from utils.globals import EXCHANGE_DRAW
 
@@ -30,7 +31,7 @@ class Exchange(BaseActionStrategy):
             player_choice: list[Influence],
             initial_player_card: list[Influence],
             combined_influences: list[Influence],
-            deck: list[Influence]
+            deck: Card
             ):
         current_player = game.get_current_player()
         # Let the player choose which influences to keep
@@ -51,6 +52,6 @@ class Exchange(BaseActionStrategy):
         # Update player's influences
         current_player.update_cards(player_choice)
 
-        # Return unchosen influences to the deck (remaining in available)
+        # Return unchosen influences to the deck 
         for influence in cards_to_return:
             deck.return_card(influence)

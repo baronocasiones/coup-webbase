@@ -1,9 +1,7 @@
 from uuid import UUID, uuid4
 from utils.exceptions import SynchronizationError
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional
 from utils import globals
-from utils import actions
 from utils.exceptions import PlayerInsufficientError
 
 from .Player import Player
@@ -16,22 +14,24 @@ from models.MoveResult import MoveResult
 
 
 class CoupGame:
-    def __init__(self):
+    def __init__(self) -> None:
         self.court_deck: Card = Card()
         self.players: list[Player] = []
         self.game_id: UUID = uuid4()
         # self.move_logs: list[Logs] = []
         self.state: GameState = GameState.WAITING_FOR_PLAYERS
         self.chats: list[dict] = []
-        self.move_target_id: UUID | None = None
+        self.move_target_id: Optional[UUID]
+        self.blocker_id: Optional[UUID]
 
         # Current turn state
         self.current_player_index: int = 0
-        self.declared_move: GameAction | None = None
-
-        # self.players_who_can_challenge: List[UUID] = [] # not yet sure if needed
+        self.declared_move: Optional[GameAction]
+        self.declared_block: Optional[BlockMove]
+        # not yet sure if needed
+        # self.players_who_can_challenge: List[UUID] = []
         # Challenge state
-        self.challenge_loser: Player | None = None
+        self.challenge_loser: Optional[Player]
 
     def get_court_deck(self) -> Card:
         return self.court_deck
@@ -64,19 +64,26 @@ class CoupGame:
         """
         self.players = [player for player in self.players if player.id != player_id]
 
-    def update_players_state(self, updated_players_state: list[Player] = None, update_player: Player = None) -> None:
+    def update_players_state(
+            self,
+            updated_players_state: Optional[list[Player]],
+            update_player: Optional[Player]
+            ) -> None:
         """
         Update the state of players in the game.
         If given a list of player states, it replaces the entire players list.
-        If given a single player, it updates that player's state in the existing list.
+        If given a single player, it updates that player's state in the
+        existing list.
         """
         if update_player:
             for idx, player in enumerate(self.players):
                 if player.id == update_player.id:
                     self.players[idx] = update_player
                     break
-        else:
+        elif updated_players_state:
             self.players = updated_players_state
+        else:
+            raise ValueError("Either updated_players_state or update_player must be provided.")
 
     def add_player(self, new_player: Player) -> None:
         """
@@ -86,12 +93,12 @@ class CoupGame:
             Player object if successful, None if game full or started
         """
         # TODO: need to raise exception instead of returning None
-        if self.game_state != GameState.WAITING_FOR_PLAYERS:
+        if self.state != GameState.WAITING_FOR_PLAYERS:
             return None
-        
-        if len(self.players) >= self.MAX_PLAYERS:
+
+        if len(self.players) >= globals.MAX_PLAYERS:
             return None
-        
+
         self.players.append(new_player)
 
     def get_player_by_id(self, player_id: UUID) -> Player | None:
@@ -117,11 +124,22 @@ class CoupGame:
 
         # Each player has 2 starting cards
         for player in self.players:
-            player.add_card(self.court_deck.draw_card())
-            player.add_card(self.court_deck.draw_card())
+            card = self.court_deck.draw_card()
+            if card is not None:
+                player.add_card(card)
+            else:
+                raise ValueError("""
+                                 Not enough cards in the court deck 
+                                 to deal to players.
+                                 """)
 
-    # process player moves, challenges, and game state transitions | Decleration only (not execution of the move)
-    def declare_move(self, player_id: UUID, move: GameAction | BlockMove, target_id: UUID = None) -> None:
+    def declare_move(
+            self,
+            player_id: UUID,
+            move: GameAction | BlockMove,
+            target_id: Optional[UUID],
+            blocker_id: Optional[UUID]
+            ) -> None:
         """
         Handle a player's declared move.
         Raises:
@@ -139,7 +157,7 @@ class CoupGame:
         if self.state != GameState.WAITING_FOR_ACTION:
             raise SynchronizationError("Game is not in a state to accept moves.")
 
-        if isinstance(move, BlockMove) and not move.is_blockable():
+        if isinstance(move, BlockMove) and self.declared_move is not None and not self.declared_move.is_blockable():
             raise ValueError("This move cannot be blocked.")
 
         # LOGIC
@@ -150,12 +168,13 @@ class CoupGame:
 
         if isinstance(move, GameAction):
             self.state = GameState.ACTION_DECLARED
+            self.declared_move = move
         elif isinstance(move, BlockMove):
             self.state = GameState.BLOCK_DECLARED
+            self.declared_block = move
+            self.blocker_id = blocker_id
         else:
             raise ValueError("Invalid move type.")
-
-        self.declared_move = move
 
     # process challenges to declared moves
     def handle_challenge(self, card_to_remove: int) -> None:
@@ -176,17 +195,23 @@ class CoupGame:
         # Reset challenge state
         self.next_turn()
 
+    def get_current_player(self) -> Player:
+        """
+        Retrieve the current player whose turn it is.
+        """
+        return self.players[self.current_player_index]
+
     def get_challenge_loser(self, challenger_id: UUID) -> UUID:
         if not isinstance(challenger_id, UUID):
             raise ValueError('challenger_id should be a type UUID')
-        if not self.declared_move.is_challengeable():
+        if isinstance(self.declared_move, GameAction) and not self.declared_move.is_challengeable():
             raise ValueError("Declared move cannot be challenged.")
 
         if self.state not in [GameState.ACTION_DECLARED, GameState.BLOCK_DECLARED]:
             raise SynchronizationError('Player cannot challenge in this time.')
 
-        current_player: Player = self.get_current_player()
-        challenger_player: Player = self.get_player(challenger_id)
+        current_player = self.get_current_player()
+        challenger_player = self.get_player_by_id(challenger_id)
 
         if challenger_player is None:
             raise ValueError("Challenger player not found.")
@@ -210,7 +235,7 @@ class CoupGame:
             raise SynchronizationError("Cannot proceeed without a declared move.")
 
         # Proceed to execute the declared move
-        self.execute_move()
+        # self.execute_move()
         self.next_turn()
 
     def next_turn(self) -> None:
@@ -237,86 +262,3 @@ class CoupGame:
         self.exchange_choices = [self.court_deck for _ in globals.EXCHANGE_DRAW] 
         return self.exchange_choices
 
-    # execute the declared move after challenges are resolved
-    def execute_move(self) -> MoveResult:
-        current_player: Player = self.get_current_player()
-
-        match self.declared_move:
-            case GameAction.INCOME:
-                actions.income(current_player)
-                return MoveResult(choice_to_remove=None, exchange_choice=None)
-            case GameAction.FOREIGN_AID:
-                actions.foreign_aid(current_player)
-                return MoveResult(choice_to_remove=None, exchange_choice=None)
-            case GameAction.COUP:
-                choice_to_remove = actions.coup(current_player, self.move_target_id)
-                return MoveResult(choice_to_remove=choice_to_remove, exchange_choice=None)
-            case GameAction.TAX:
-                actions.tax(current_player)
-                return MoveResult(choice_to_remove=None, exchange_choice=None)
-            case GameAction.ASSASSINATE:
-                choice_to_remove = actions.assassinate(current_player, self.move_target_id)
-                return MoveResult(choice_to_remove=choice_to_remove, exchange_choice=None)
-            case GameAction.STEAL:
-                actions.steal(current_player, self.move_target_id)
-                return MoveResult(choice_to_remove=None, exchange_choice=None)
-            case GameAction.EXCHANGE:
-                actions.exchange(current_player, )
-                return MoveResult(choice_to_remove=None, exchange_choice=exchange_choice)
-            case _:
-                raise SynchronizationError("There is no declared move")
-
-    def get_current_player(self) -> Player:
-        return self.players[self.current_player_index]
-
-    def get_target_player(self) -> Player | None:
-        if self.move_target_id is None:
-            return None
-        return self.get_player_by_id(self.move_target_id)
-
-#     def income(self) -> None:
-#         current_player = self.get_current_player()
-#         current_player.coins += 1
-#
-#     def foreign_aid(self) -> None:
-#         current_player = self.get_current_player()
-#         current_player.coins += 2
-#
-#     def coup(self) -> None:
-#         current_player = self.get_current_player()
-#         target_player = self.get_player(self.move_target_id)
-#         if target_player.coins < 7:
-#             valueError("Player don't have enough coins to perform coup")
-#         if len(target_player.cards) == 0:
-#             valueError("Target don't have any cards")
-#         current_player.coins -= 7
-#
-#
-# # DUKE - Tax
-#     def tax(player: Player) -> None:
-#         player.coins += 3
-#
-# # ASSASSIN - Assassinate
-#     def assassinate(attacker: Player, target: Player) -> list[Influence]:
-#         if attacker.coins < 3:
-#             raise ValueError("Not enough coins to assassinate.")
-#         attacker.coins -= 3
-#         if not target.cards:
-#             raise ValueError("Target has no cards to lose.")
-#         return target.cards
-#
-# # CAPTAIN - Steal
-#     def steal(thief: Player, target: Player) -> None:
-#         if target.coins == 0:
-#             raise ValueError('There is nothing to steal from the traget')
-#         stolen = min(2, target.coins)
-#         target.coins -= stolen
-#         thief.coins += stolen
-#
-# # AMBASSADOR — Exchange
-#     def exchange(player: Player, new_card: Influence, index_to_replace: int) -> None: 
-#         player.remove_card(index_to_replace)
-#         player.add_card(new_card)
-#
-#
-#

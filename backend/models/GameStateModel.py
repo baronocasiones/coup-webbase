@@ -1,17 +1,17 @@
-from pydantic import BaseModel
-from services.Player import Player
 from services.GameState import GameState
-from uuid import UUID
+from services.GameAction import GameAction
+from services.BlockMove import BlockMove
+from services.Player import Player
+
+from pydantic import BaseModel
+from models.PlayerModel import PlayerModel
 from typing import Optional
+
 
 class GameStateModel(BaseModel):
     state: GameState
-    players_state: list[dict[str, int | str]] 
-    player_turn: Optional[UUID] = None
-    declared_move: Optional[str] = None
-
-    class Config:
-        extra = "ignore"
-
-
-
+    cardsInDeck: int
+    playersState: list[PlayerModel]
+    delcaredMove: Optional[GameAction]
+    declaredBlock: Optional[BlockMove]
+    challengeLoser: Optional[Player]

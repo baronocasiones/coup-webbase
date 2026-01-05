@@ -5,7 +5,7 @@ from fastapi import WebSocket
 
 
 class Player:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name: str = name
         self.id: UUID = uuid4()
         self.cards: list[Influence] = []

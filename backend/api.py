@@ -3,7 +3,7 @@ from uuid import UUID
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from models.PlayerModel import PlayerModel
-from models.GameStateModel import GameStateModel
+from models.LobbyStateModel import LobbyStateModel
 from models.ChatModel import ChatModel
 from services.ConnectionManager import ConnectionManager
 from routes.players import router as players_router
