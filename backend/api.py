@@ -36,15 +36,16 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
         return
 
     players_state = [PlayerModel(
-        name=player.name, 
+        name=player.name,
         id=player.id,
         isReady=player.isReady
-        ).model_dump(mode='json') for player in lobby_controller.get_players()]  
+        ).model_dump(mode='json') for player in lobby_controller.get_players()]
 
     await game_manager.connect(websocket, user_id, players_state)
     try:
-        while True:
-            data = json.loads(await websocket.receive_text()) # Expecting a list of player data
+        while websocket.client_state == WebSocket.STATE_CONNECTED:
+            # Expecting a list of player data
+            data = json.loads(await websocket.receive_text())
             data_action = data.get("action", None)
             players_state = data.get("players", None)
             if data_action == "disconnect":
@@ -53,9 +54,11 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
 
     except WebSocketDisconnect as e:
         game_manager.disconnect(user_id)
+        print(e)
 
     except Exception as e:
         print(f'Error: {e}')
+
 
 @app.websocket('/ws/chat')
 async def websocket_chat_endpoint(websocket: WebSocket, user_id: UUID):

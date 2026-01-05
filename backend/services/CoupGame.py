@@ -4,32 +4,37 @@ from typing import Optional, List
 from datetime import datetime
 from utils import globals
 from utils import actions
+from utils.exceptions import PlayerInsufficientError
 
 from .Player import Player
 from .GameState import GameState
 from .GameAction import GameAction
 from .BlockMove import BlockMove
 from .Card import Card
-from .Influence import Influence
+
 from models.MoveResult import MoveResult
+
 
 class CoupGame:
     def __init__(self):
-        self.available_cards: Card = Card()
+        self.court_deck: Card = Card()
         self.players: list[Player] = []
         self.game_id: UUID = uuid4()
-        self.move_logs: list[Logs] = []
+        # self.move_logs: list[Logs] = []
         self.state: GameState = GameState.WAITING_FOR_PLAYERS
         self.chats: list[dict] = []
         self.move_target_id: UUID | None = None
 
-        # Current turn state 
+        # Current turn state
         self.current_player_index: int = 0
-        self.declared_move: PlayerAction | None = None
-        
+        self.declared_move: GameAction | None = None
+
         # self.players_who_can_challenge: List[UUID] = [] # not yet sure if needed
         # Challenge state
         self.challenge_loser: Player | None = None
+
+    def get_court_deck(self) -> Card:
+        return self.court_deck
 
     def add_chat(self, chat_message: dict) -> None:
         """
@@ -41,11 +46,16 @@ class CoupGame:
             return
 
         last_timestamp = self.chats[-1].get('timestamp')
-        if last_timestamp is not None and chat_message_timestamp is not None and last_timestamp <= chat_message_timestamp:
+        if last_timestamp is not None and\
+                chat_message_timestamp is not None and\
+                last_timestamp <= chat_message_timestamp:
             self.chats.append(chat_message)
         else:
             raise SynchronizationError(
-                f"Chat message timestamp ({chat_message_timestamp}) is older than the latest message ({last_timestamp})."
+                f"""
+                Chat message timestamp ({chat_message_timestamp}) is older than the
+                latest message ({last_timestamp}).
+                """
             )
 
     def remove_player(self, player_id: UUID) -> None:
@@ -82,7 +92,7 @@ class CoupGame:
         if len(self.players) >= self.MAX_PLAYERS:
             return None
         
-        self.players.append(player)
+        self.players.append(new_player)
 
     def get_player_by_id(self, player_id: UUID) -> Player | None:
         """Retrieve a player by their ID."""
@@ -104,9 +114,11 @@ class CoupGame:
                 f"Not enough players to start the game. Minimum {globals.MIN_PLAYERS} players required."
             )
         self.state = GameState.WAITING_FOR_ACTION
+
+        # Each player has 2 starting cards
         for player in self.players:
-            player.add_card(self.available_cards.draw_card())
-            player.add_card(self.available_cards.draw_card())
+            player.add_card(self.court_deck.draw_card())
+            player.add_card(self.court_deck.draw_card())
 
     # process player moves, challenges, and game state transitions | Decleration only (not execution of the move)
     def declare_move(self, player_id: UUID, move: GameAction | BlockMove, target_id: UUID = None) -> None:
@@ -222,7 +234,7 @@ class CoupGame:
 
     def start_exchange(self):
         self.state = GameState.PENDING_EXCHANGE
-        self.exchange_choices = [self.available_cards for _ in globals.EXCHANGE_DRAW] 
+        self.exchange_choices = [self.court_deck for _ in globals.EXCHANGE_DRAW] 
         return self.exchange_choices
 
     # execute the declared move after challenges are resolved
@@ -257,48 +269,54 @@ class CoupGame:
     def get_current_player(self) -> Player:
         return self.players[self.current_player_index]
 
-    def income(self) -> None:
-        current_player = self.get_current_player()
-        current_player.coins += 1
+    def get_target_player(self) -> Player | None:
+        if self.move_target_id is None:
+            return None
+        return self.get_player_by_id(self.move_target_id)
 
-    def foreign_aid(self) -> None:
-        current_player = self.get_current_player()
-        current_player.coins += 2
-
-    def coup(self) -> None:
-        current_player = self.get_current_player()
-        target_player = next(filter(lambda player: player.id == self.move_target_id))
-        if target_player.coins < 7:
-            valueError("Player don't have enough coins to perform coup")
-        if len(target_player.cards) == 0:
-            valueError("Target don't have any cards")
-        target_player.coins -= 7
-
-# DUKE - Tax
-    def tax(player: Player) -> None:
-        player.coins += 3
-
-# ASSASSIN - Assassinate
-    def assassinate(attacker: Player, target: Player) -> list[Influence]:
-        if attacker.coins < 3:
-            raise ValueError("Not enough coins to assassinate.")
-        attacker.coins -= 3
-        if not target.cards:
-            raise ValueError("Target has no cards to lose.")
-        return target.cards
-        
-# CAPTAIN - Steal
-    def steal(thief: Player, target: Player) -> None:
-        if target.coins == 0:
-            raise ValueError('There is nothing to steal from the traget')
-        stolen = min(2, target.coins)
-        target.coins -= stolen
-        thief.coins += stolen
-
-# AMBASSADOR — Exchange
-    def exchange(player: Player, new_card: Influence, index_to_replace: int) -> None: 
-        player.remove_card(index_to_replace)
-        player.add_card(new_card)
-
-
-
+#     def income(self) -> None:
+#         current_player = self.get_current_player()
+#         current_player.coins += 1
+#
+#     def foreign_aid(self) -> None:
+#         current_player = self.get_current_player()
+#         current_player.coins += 2
+#
+#     def coup(self) -> None:
+#         current_player = self.get_current_player()
+#         target_player = self.get_player(self.move_target_id)
+#         if target_player.coins < 7:
+#             valueError("Player don't have enough coins to perform coup")
+#         if len(target_player.cards) == 0:
+#             valueError("Target don't have any cards")
+#         current_player.coins -= 7
+#
+#
+# # DUKE - Tax
+#     def tax(player: Player) -> None:
+#         player.coins += 3
+#
+# # ASSASSIN - Assassinate
+#     def assassinate(attacker: Player, target: Player) -> list[Influence]:
+#         if attacker.coins < 3:
+#             raise ValueError("Not enough coins to assassinate.")
+#         attacker.coins -= 3
+#         if not target.cards:
+#             raise ValueError("Target has no cards to lose.")
+#         return target.cards
+#
+# # CAPTAIN - Steal
+#     def steal(thief: Player, target: Player) -> None:
+#         if target.coins == 0:
+#             raise ValueError('There is nothing to steal from the traget')
+#         stolen = min(2, target.coins)
+#         target.coins -= stolen
+#         thief.coins += stolen
+#
+# # AMBASSADOR — Exchange
+#     def exchange(player: Player, new_card: Influence, index_to_replace: int) -> None: 
+#         player.remove_card(index_to_replace)
+#         player.add_card(new_card)
+#
+#
+#

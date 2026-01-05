@@ -13,7 +13,7 @@ def get_players():
     return lobby_controller.get_players()
 
 @router.get("/player", response_model=PlayerModel)
-def get_player(user_id: UUID)
+def get_player(user_id: UUID):
     player = lobby_controller.get_player_by_id(user_id)
     if player:
         return player
