@@ -23,6 +23,7 @@ class CoupGame:
         self.chats: list[dict] = []
         self.move_target_id: Optional[UUID]
         self.blocker_id: Optional[UUID]
+        self.challenger_id: Optional[UUID]
 
         # Current turn state
         self.current_player_index: int = 0
@@ -35,6 +36,14 @@ class CoupGame:
 
     def get_court_deck(self) -> Card:
         return self.court_deck
+
+    def get_move_target(self) -> Player | None:
+        """
+        Retrieve the target player for the current move, if any.
+        """
+        if self.move_target_id is None:
+            return None
+        return self.get_player_by_id(self.move_target_id)
 
     def add_chat(self, chat_message: dict) -> None:
         """
@@ -212,6 +221,7 @@ class CoupGame:
 
         current_player = self.get_current_player()
         challenger_player = self.get_player_by_id(challenger_id)
+        self.challenger_id = challenger_id
 
         if challenger_player is None:
             raise ValueError("Challenger player not found.")
@@ -254,6 +264,8 @@ class CoupGame:
         self.declared_move = None
         self.challenge_loser = None
         self.move_target_id = None
+        self.challenger_id = None
+        self.blocker_id = None
         for player in self.players:
             player.is_lying = False
 

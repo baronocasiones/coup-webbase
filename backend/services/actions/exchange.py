@@ -5,16 +5,12 @@ from services.Card import Card
 
 from utils.globals import EXCHANGE_DRAW
 
+from .decorators import prompt_user_input
+
 
 class Exchange(BaseActionStrategy):
-    def execute(self, game: CoupGame, **kwargs):
-        return {
-                "player": game.get_current_player(),
-                "court_deck": game.get_court_deck(),
-                "initial_player_card": game.get_current_player().get_cards()
-                }
-
-    def phase_one(self, game: CoupGame):
+    @prompt_user_input
+    def execute(self, game: CoupGame, *args, **kwargs):
         current_player = game.get_current_player()
         deck = game.get_court_deck()
 
@@ -38,7 +34,7 @@ class Exchange(BaseActionStrategy):
         if len(player_choice) != len(initial_player_card):
             raise ValueError(
                 f"""Player must choose exactly
-                {len(self.initial_player_card)}
+                {len(initial_player_card)}
                 influences to keep."""
             )
 

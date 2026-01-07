@@ -4,5 +4,5 @@ from services.CoupGame import CoupGame
 
 class BaseActionStrategy(ABC):
     @abstractmethod
-    def execute(self, game: CoupGame, **kwargs):
+    def execute(self, game: CoupGame, *args, **kwargs):
         pass

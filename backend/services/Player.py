@@ -40,20 +40,7 @@ class Player:
     def change_name(self, new_name: str) -> None:
         self.name = new_name
 
-    def remove_card(self, card_index: int) -> None:
-        """
-        Removes a card at the specified index from the player's hand,
-        and removes all associated actions from the player's available moves.
-        Raises IndexError if the index is out of range.
-        """
-        if 0 <= card_index < len(self.cards):
-            influence = self.cards[card_index]
-            influence_actions = influence.get_actions()
-            # Use set operations for efficient removal
-            self.moves = [
-                    action for action in
-                    self.moves if action not in influence_actions
-                    ]
-            self.cards.pop(card_index)
-        else:
-            raise IndexError("Index given is out of card range")
+    def remove_card(self, card_to_remove: Influence) -> None:
+        if card_to_remove not in self.cards:
+            raise ValueError(f"Card {card_to_remove} not found in player's cards.")
+        self.cards.remove(card_to_remove)

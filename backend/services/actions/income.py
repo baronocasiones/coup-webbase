@@ -3,6 +3,6 @@ from services.CoupGame import CoupGame
 
 
 class Income(BaseActionStrategy):
-    def execute(self, game: CoupGame, **kwargs):
+    def execute(self, game: CoupGame, *args, **kwargs):
         player = game.get_current_player()
-        player.coinse += 1
+        player.coins += 1

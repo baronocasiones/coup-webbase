@@ -1,13 +1,15 @@
 from .base import BaseActionStrategy
+from utils.globals import COUP_COST
+
 from services.CoupGame import CoupGame
 from services.Player import Player
-from utils.globals import COUP_COST
+from services.Influence import Influence
 
 
 class Coup(BaseActionStrategy):
-    def execute(self, game: CoupGame, index_to_remove: int, **kwargs):
+    def execute(self, game: CoupGame, index_to_remove: Influence, *args, **kwargs):
         player: Player = game.get_current_player()
-        target_player = game.get_target_player()
+        target_player = game.get_move_target()
 
         if target_player is None:
             raise ValueError("Target player must be specified for a coup.")

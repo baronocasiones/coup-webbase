@@ -5,9 +5,9 @@ from utils.globasl import ASSASSINATION_COST
 
 
 class Assassinate(BaseActionStrategy):
-    def execute(self, game: CoupGame, index_to_remove: Influence, **kwargs):
+    def execute(self, game: CoupGame, index_to_remove: Influence, *args, **kwargs):
         player = game.get_current_player()
-        target_player = game.get_target_player()
+        target_player = game.get_move_target()
 
         if target_player is None:
             raise ValueError("Target player must be specified for a coup.")
