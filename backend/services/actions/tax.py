@@ -3,6 +3,6 @@ from services.CoupGame import CoupGame
 
 
 class Tax(BaseActionStrategy):
-    def execute(self, game: CoupGame, *args, **kwargs):
+    def execute(self, game: CoupGame, **kwargs):
         player = game.get_current_player()
         player.coins += 3

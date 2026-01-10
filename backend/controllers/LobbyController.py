@@ -1,11 +1,11 @@
 from services.CoupGame import CoupGame
-from services.ConnectionManager import ConnectionManager
 from uuid import UUID
 from services.Player import Player
+from utils.exceptions import PlayerNotFoundError
 
 
 class LobbyController:
-    def __init__(self):
+    def __init__(self) -> None:
         self.game: CoupGame = CoupGame()
 
     def remove_player(self, player_id: UUID) -> None:
@@ -21,7 +21,10 @@ class LobbyController:
                 self.game.update_players_state(update_player=player)
 
     def get_player_by_id(self, user_id: UUID) -> Player:
-        return self.game.get_player_by_id(user_id)
+        player = self.game.get_player_by_id(user_id)
+        if not player:
+            raise PlayerNotFoundError("This Player ID is not found.")
+        return player
 
     def get_players(self) -> list[Player]:
         return self.game.players

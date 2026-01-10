@@ -5,19 +5,11 @@ from utils.globasl import ASSASSINATION_COST
 
 
 class Assassinate(BaseActionStrategy):
-    def execute(self, game: CoupGame, index_to_remove: Influence, *args, **kwargs):
+    def execute(self, game: CoupGame, **kwargs):
         player = game.get_current_player()
         target_player = game.get_move_target()
-
+        if player.get_coins() < ASSASSINATION_COST:
+            raise ValueError("Not enough coins to perform Assassinate action.")
         if target_player is None:
-            raise ValueError("Target player must be specified for a coup.")
-        if player.coins < ASSASSINATION_COST:
-            raise ValueError("Not enough coins to perform a coup.")
-
-        try:
-            player.coins -= ASSASSINATION_COST
-            target_player.remove_card(index_to_remove)
-        except IndexError as e:
-            print(e)
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            raise ValueError("Target player must be specified for Assassinate action.")
+        return target_player.get_cards()

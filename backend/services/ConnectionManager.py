@@ -1,7 +1,7 @@
 from fastapi import WebSocket
 from uuid import UUID
-from models.PlayerModel import PlayerModel
 from typing import Optional
+
 
 class ConnectionManager:
     def __init__(self):
@@ -20,7 +20,14 @@ class ConnectionManager:
     def disconnect(self, player_id: UUID):
         self.active_connections.pop(player_id, None)
 
-    async def broadcast(self, sender: UUID, message: dict | list[dict]):
+    async def send_personal_message(self, player_id: UUID, message: dict | list):
+        connection = self.active_connections.get(player_id)
+        if connection:
+            await connection.send_json(message)
+        else:
+            raise ValueError(f"No active connection for player ID: {player_id}")
+
+    async def broadcast(self, sender: UUID, message: dict | list):
         print("MESSAGE:", message)
         for id, connection in self.active_connections.items():
             if id != sender:

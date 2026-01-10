@@ -9,8 +9,13 @@ from .GameState import GameState
 from .GameAction import GameAction
 from .BlockMove import BlockMove
 from .Card import Card
-
-from models.MoveResult import MoveResult
+from .actions.assassinate import Assassinate
+from .actions.coup import Coup
+from .actions.exchange import Exchange
+from .actions.income import Income
+from .actions.foreign_aid import ForeignAid
+from .actions.tax import Tax
+from .actions.steal import Steal
 
 
 class CoupGame:
@@ -33,6 +38,16 @@ class CoupGame:
         # self.players_who_can_challenge: List[UUID] = []
         # Challenge state
         self.challenge_loser: Optional[Player]
+
+        self.move_handler = {
+            GameAction.INCOME: Income(),
+            GameAction.FOREIGN_AID: ForeignAid(),
+            GameAction.TAX: Tax(),
+            GameAction.STEAL: Steal(),
+            GameAction.ASSASSINATE: Assassinate(),
+            GameAction.COUP: Coup(),
+            GameAction.EXCHANGE: Exchange()
+        }
 
     def get_court_deck(self) -> Card:
         return self.court_deck
@@ -75,9 +90,9 @@ class CoupGame:
 
     def update_players_state(
             self,
-            updated_players_state: Optional[list[Player]],
-            update_player: Optional[Player]
-            ) -> None:
+            updated_players_state: Optional[list[Player]] = None,
+            update_player: Optional[Player] = None
+    ) -> None:
         """
         Update the state of players in the game.
         If given a list of player states, it replaces the entire players list.
@@ -97,7 +112,6 @@ class CoupGame:
     def add_player(self, new_player: Player) -> None:
         """
         Add a player to the game.
-            
         Returns:
             Player object if successful, None if game full or started
         """
@@ -116,11 +130,12 @@ class CoupGame:
             if player.id == player_id:
                 return player
         raise ValueError("Player not found")
-        
+
     # start the game when there are 2 or more players in the lobby/room (min 2, max 6)
     def start_game(self) -> None:
         """
         Start the game if enough players are present.
+
         Raises:
             PlayerInsufficientError: If there are not enough players to start the game.
         state transitions to WAITING_FOR_ACTION
@@ -138,7 +153,7 @@ class CoupGame:
                 player.add_card(card)
             else:
                 raise ValueError("""
-                                 Not enough cards in the court deck 
+                                 Not enough cards in the court deck
                                  to deal to players.
                                  """)
 
@@ -148,11 +163,11 @@ class CoupGame:
             move: GameAction | BlockMove,
             target_id: Optional[UUID],
             blocker_id: Optional[UUID]
-            ) -> None:
+    ) -> None:
         """
         Handle a player's declared move.
         Raises:
-            SynchronizationError: If it's not the player's 
+            SynchronizationError: If it's not the player's
             turn and make a GameAction move or the game is not in a state
             to accept moves.
         """
@@ -211,6 +226,9 @@ class CoupGame:
         return self.players[self.current_player_index]
 
     def get_challenge_loser(self, challenger_id: UUID) -> UUID:
+        """
+        Get the ID of the player who loses the challenge.
+        """
         if not isinstance(challenger_id, UUID):
             raise ValueError('challenger_id should be a type UUID')
         if isinstance(self.declared_move, GameAction) and not self.declared_move.is_challengeable():
@@ -245,7 +263,7 @@ class CoupGame:
             raise SynchronizationError("Cannot proceeed without a declared move.")
 
         # Proceed to execute the declared move
-        # self.execute_move()
+        self.perform_action()
         self.next_turn()
 
     def next_turn(self) -> None:
@@ -269,8 +287,16 @@ class CoupGame:
         for player in self.players:
             player.is_lying = False
 
-    def start_exchange(self):
-        self.state = GameState.PENDING_EXCHANGE
-        self.exchange_choices = [self.court_deck for _ in globals.EXCHANGE_DRAW] 
-        return self.exchange_choices
+    def perform_action(self) -> None:
+        """
+        Execute the declared action by the current player.
+        """
 
+        if self.declared_move is None:
+            raise ValueError("No declared move to perform.")
+
+        action_handler = self.move_handler.get(self.declared_move)
+        if action_handler is None:
+            raise ValueError("No handler found for the declared move.")
+
+        action_handler.execute(self)

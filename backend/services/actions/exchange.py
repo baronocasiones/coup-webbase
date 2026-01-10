@@ -10,7 +10,7 @@ from .decorators import prompt_user_input
 
 class Exchange(BaseActionStrategy):
     @prompt_user_input
-    def execute(self, game: CoupGame, *args, **kwargs):
+    def execute(self, game: CoupGame, **kwargs):
         current_player = game.get_current_player()
         deck = game.get_court_deck()
 
@@ -22,13 +22,13 @@ class Exchange(BaseActionStrategy):
         return combined_influences
 
     def phase_two(
-            self,
-            game: CoupGame,
-            player_choice: list[Influence],
-            initial_player_card: list[Influence],
-            combined_influences: list[Influence],
-            deck: Card
-            ):
+        self,
+        game: CoupGame,
+        player_choice: list[Influence],
+        initial_player_card: list[Influence],
+        combined_influences: list[Influence]
+    ) -> None:
+        deck = game.get_court_deck()
         current_player = game.get_current_player()
         # Let the player choose which influences to keep
         if len(player_choice) != len(initial_player_card):
@@ -48,6 +48,6 @@ class Exchange(BaseActionStrategy):
         # Update player's influences
         current_player.update_cards(player_choice)
 
-        # Return unchosen influences to the deck 
+        # Return unchosen influences to the deck
         for influence in cards_to_return:
             deck.return_card(influence)

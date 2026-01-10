@@ -1,15 +1,16 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
-from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
-from models.PlayerModel import PlayerModel
-from models.LobbyStateModel import LobbyStateModel
-from models.ChatModel import ChatModel
-from services.ConnectionManager import ConnectionManager
-from routes.players import router as players_router
-from routes.chats import router as chats_router
 from controllers.LobbyController import lobby_controller
 import json
+
+from services.ConnectionManager import ConnectionManager
+
+from models.PlayerModel import PlayerModel
+from models.ChatModel import ChatModel
+
+from routes.players import router as players_router
+from routes.chats import router as chats_router
 
 game_manager = ConnectionManager()
 chat_manager = ConnectionManager()
@@ -35,15 +36,14 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
-    players_state = [PlayerModel(
-        name=player.name,
-        id=player.id,
-        isReady=player.isReady
-        ).model_dump(mode='json') for player in lobby_controller.get_players()]
+    players_state = [PlayerModel(**player)
+                     .model_dump(mode='json')
+                     for player in lobby_controller.get_players()
+                     ]
 
     await game_manager.connect(websocket, user_id, players_state)
     try:
-        while websocket.client_state == WebSocket.STATE_CONNECTED:
+        while True:
             # Expecting a list of player data
             data = json.loads(await websocket.receive_text())
             data_action = data.get("action", None)
@@ -90,6 +90,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: UUID):
 
     except WebSocketDisconnect as e:
         chat_manager.disconnect(user_id)
+        print(e)
 
     except Exception as e:
         print(f'Error: {e}')

@@ -1,25 +1,24 @@
-from .base import BaseActionStrategy
 from utils.globals import COUP_COST
+from .base import BaseActionStrategy
+from .base import BaseRemoveInfluence
+from .base.decorators import prompt_user_input
 
 from services.CoupGame import CoupGame
-from services.Player import Player
-from services.Influence import Influence
+from services.Invluence import Influence
 
 
-class Coup(BaseActionStrategy):
-    def execute(self, game: CoupGame, index_to_remove: Influence, *args, **kwargs):
-        player: Player = game.get_current_player()
+class Coup(BaseActionStrategy, BaseRemoveInfluence):
+    @prompt_user_input
+    def execute(self, game: CoupGame, **kwargs) -> list[Influence]:
+        player = game.get_current_player()
         target_player = game.get_move_target()
-
+        if player.get_coins() < COUP_COST:
+            raise ValueError("Not enough coins to perform Coup action.")
         if target_player is None:
-            raise ValueError("Target player must be specified for a coup.")
-        if player.coins < COUP_COST:
-            raise ValueError("Not enough coins to perform a coup.")
+            raise ValueError("Target player must be specified for Coup action.")
+        return target_player.get_cards()
 
-        try:
-            player.coins -= COUP_COST
-            target_player.remove_card(index_to_remove)
-        except IndexError as e:
-            print(e)
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+
+
+
+

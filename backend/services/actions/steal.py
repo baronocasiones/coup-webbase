@@ -4,7 +4,7 @@ from utils.globals import AMOUNT_TO_STEAL
 
 
 class Steal(BaseActionStrategy):
-    def execute(self, game: CoupGame, *args, **kwargs):
+    def execute(self, game: CoupGame, **kwargs):
         player = game.get_current_player()
         target_player = game.get_move_target()
 

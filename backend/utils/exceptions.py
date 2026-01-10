@@ -12,3 +12,8 @@ class SynchronizationError(Exception):
     and actual state of a player during state updates.
     """
     pass
+
+class PlayerNotFoundError(Exception):
+    """
+    Raise when player is not found in the game.
+    """
