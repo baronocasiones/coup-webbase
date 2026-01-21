@@ -1,23 +1,25 @@
 from abc import ABC, abstractmethod
-from services.CoupGame import CoupGame
-from services.GameAction import GameAction
+from utils.globals import COUP_COST, ASSASSINATION_COST
 from services.Influence import Influence
-from utils.globasl import COUP_COST, ASSASSINATE_COST
+from services.GameAction import GameAction
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from services.CoupGame import CoupGame
 
 
 class BaseActionStrategy(ABC):
     @abstractmethod
-    def execute(self, game: CoupGame, **kwargs):
+    def execute(self, game: 'CoupGame', **kwargs):
         pass
 
 
 class BaseRemoveInfluence(ABC):
     move_cost_handler = {
         GameAction.COUP: COUP_COST,
-        GameAction.ASSASSINATE: ASSASSINATE_COST
+        GameAction.ASSASSINATE: ASSASSINATION_COST
     }
 
-    def phase_two(self, game: CoupGame, influence_to_remove: Influence, **kwargs):
+    def phase_two(self, game: 'CoupGame', influence_to_remove: Influence, **kwargs):
         player = game.get_current_player()
         target_player = game.get_move_target()
         current_move = game.get_current_move()

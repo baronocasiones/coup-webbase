@@ -1,15 +1,18 @@
 from utils.globals import COUP_COST
 from .base import BaseActionStrategy
 from .base import BaseRemoveInfluence
-from .base.decorators import prompt_user_input
+from .decorators import prompt_user_input
 
-from services.CoupGame import CoupGame
-from services.Invluence import Influence
+from services.Influence import Influence
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from services.CoupGame import CoupGame
 
 
 class Coup(BaseActionStrategy, BaseRemoveInfluence):
     @prompt_user_input
-    def execute(self, game: CoupGame, **kwargs) -> list[Influence]:
+    def execute(self, game: 'CoupGame', **kwargs) -> list[Influence]:
         player = game.get_current_player()
         target_player = game.get_move_target()
         if player.get_coins() < COUP_COST:

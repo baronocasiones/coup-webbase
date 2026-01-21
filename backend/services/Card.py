@@ -18,7 +18,7 @@ class Card:
             return None
 
     def return_card(self, card: Influence):
-        self.card_stack.insert(0)
+        self.card_stack.insert(0, card)
 
     def shuffle_deck(self) -> None:
         random.shuffle(self.card_stack)

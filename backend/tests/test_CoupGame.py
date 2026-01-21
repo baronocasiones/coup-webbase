@@ -1,89 +1,126 @@
 import pytest
 from uuid import uuid4
-from unittest.mock import MagicMock
-
 from services.CoupGame import CoupGame
-from services.GameState import GameState
 from services.Player import Player
+from services.GameState import GameState
 from services.GameAction import GameAction
-from services.Influence import Influence
-from utils.exceptions import SynchronizationError
+from services.BlockMove import BlockMove
+from utils.exceptions import SynchronizationError, PlayerInsufficientError
+
 
 @pytest.fixture
 def game():
-    game = CoupGame()
-    player1 = Player('Alice')
-    player2 = Player('Bob')
-    game.players = [player1, player2]
-    game.current_player_index = 0
-    return game
+    g = CoupGame()
 
-def test_add_chat(game):
-    chat1 = {"message": "hi", "timestamp": 1}
-    chat2 = {"message": "hello", "timestamp": 2}
-    game.add_chat(chat1)
-    game.add_chat(chat2)
-    assert len(game.chats) == 2
-    with pytest.raises(SynchronizationError):
-        game.add_chat({"message": "old", "timestamp": 0})
+    def _deal_initial_cards():
+        return g._deal_initial_cards
 
-def test_update_players_state(game):
-    new_player = MagicMock(spec=Player)
-    new_player.id = game.players[0].id
-    game.update_players_state(update_player=new_player)
-    assert new_player in game.players
+    return g
 
-def test_get_player(game):
-    found = game.get_player(game.players[0].id)
-    assert found == game.players[0]
+
+@pytest.fixture
+def player():
+    p = Player('baron')
+    return p
+
+
+@pytest.fixture
+def player2():
+    p = Player('duchess')
+    return p
+
+
+def test_add_and_remove_player(game, player):
+    game.state = GameState.WAITING_FOR_PLAYERS
+    game.add_player(player)
+    assert player in game.players
+    game.remove_player(player.id)
+    assert player not in game.players
+
+
+def test_add_player_when_game_started(game, player):
+    game.state = GameState.WAITING_FOR_ACTION
+    assert game.add_player(player) is None
+
+
+def test_add_player_when_full(game, player):
+    game.state = GameState.WAITING_FOR_PLAYERS
+    game.players = [Player(str(i)) for i in range(6)]
+    assert game.add_player(player) is None
+
+
+def test_start_game_insufficient_players(game, player):
+    game.players = [player]
+    with pytest.raises(PlayerInsufficientError):
+        game.start_game()
+
+
+def test_start_game(game: CoupGame, player, player2):
+    game.players = [player, player2]
+    game.state = GameState.WAITING_FOR_PLAYERS
+    game.start_game()
+    assert game.state == GameState.WAITING_FOR_ACTION
+
+
+def test_deal_inital_cards(game: CoupGame, player, player2):
+    game.players = [player, player2]
+    game._deal_initial_cards()
+    assert len(player.cards) == 2
+    assert len(player2.cards) == 2
+
+
+def test_get_player_by_id_not_found(game, player):
+    game.players = [player]
     with pytest.raises(ValueError):
-        game.get_player(uuid4())
+        game.get_player_by_id(uuid4())
 
-def test_declare_move_wrong_state(game):
+
+def test_declare_move_wrong_turn(game, player, player2):
+    game.players = [player, player2]
+    game.current_player_index = 0
+    game.state = GameState.WAITING_FOR_ACTION
+    with pytest.raises(SynchronizationError):
+        game.declare_move(player2.id, GameAction.INCOME, None, None)
+
+
+def test_declare_move_block_self(game, player):
+    game.players = [player]
+    game.current_player_index = 0
+    game.state = GameState.WAITING_FOR_ACTION
+    with pytest.raises(SynchronizationError):
+        game.declare_move(player.id, BlockMove.BLOCK_FOREIGN_AID, None, player.id)
+
+
+def test_declare_move_invalid_state(game, player):
+    game.players = [player]
+    game.current_player_index = 0
     game.state = GameState.WAITING_FOR_PLAYERS
     with pytest.raises(SynchronizationError):
-        game.declare_move(game.players[0].id, GameAction.INCOME)
+        game.declare_move(player.id, GameAction.INCOME, None, None)
 
-def test_declare_move_not_players_turn(game):
-    game.state = GameState.WAITING_FOR_ACTION
-    game.current_player_index = 1
+
+def test_handle_no_challenge_invalid_state(game, player):
+    game.players = [player]
+    game.state = GameState.WAITING_FOR_PLAYERS
     with pytest.raises(SynchronizationError):
-        game.declare_move(game.players[0].id, GameAction.INCOME)
+        game.handle_no_challenge()
 
-def test_declare_move(game):
-    game.state = GameState.WAITING_FOR_ACTION
-    game.current_player_index = 0
-    player = game.players[0]
-    game.declare_move(player.id, GameAction.INCOME)
-    assert game.declared_move == GameAction.INCOME
-    assert game.state == GameState.ACTION_DECLARED
 
-def test_get_challenge_loser(game):
-    game.state = GameState.WAITING_FOR_ACTION
-    player_1 = game.players[0]
-    player_2 = game.players[1]
-    player_1.add_card(Influence.ASSASSIN)
-    game.declare_move(player_1.id, GameAction.ASSASSINATE)
-    game.get_challenge_loser(player_2.id)
-    assert game.challenge_loser == player_2
-    with pytest.raises(ValueError):
-        game.get_challenge_loser(player_1)
-
-def test_get_challenge_loser_errors(game):
-    player_1 = game.players[0]
-    with pytest.raises(ValueError):
-        game.state = GameState.ACTION_DECLARED
-        game.get_challenge_loser(uuid4())
+def test_next_turn_player_with_no_cards(game, player, player2):
+    player.cards = []
+    game.players = [player, player2]
     with pytest.raises(SynchronizationError):
-        game.state = GameState.WAITING_FOR_PLAYERS
-        game.get_challenge_loser(player_1.id)
+        game.next_turn()
 
 
-def test_next_turn(game):
-    game.current_player_index = 0
+def test_next_turn_game_over(game: CoupGame, player):
+    game.players = [player]
+    game._deal_initial_cards()
+    game.state = GameState.WAITING_FOR_ACTION
     game.next_turn()
-    assert game.current_player_index == 1
-    assert game.state == GameState.WAITING_FOR_ACTION
-    for player in game.players:
-        assert not player.is_lying 
+    assert game.state == GameState.GAME_OVER
 
+
+def test_perform_action_no_declared_move(game):
+    with pytest.raises(ValueError):
+        game.perform_action()

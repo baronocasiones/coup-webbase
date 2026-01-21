@@ -1,11 +1,14 @@
 from services.actions.base import BaseActionStrategy
-from services.CoupGame import CoupGame
-from services.Influence import Influence
-from utils.globasl import ASSASSINATION_COST
+from services.actions.decorators import prompt_user_input
+from utils.globals import ASSASSINATION_COST
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from services.CoupGame import CoupGame
 
 
 class Assassinate(BaseActionStrategy):
-    def execute(self, game: CoupGame, **kwargs):
+    @prompt_user_input
+    def execute(self, game: 'CoupGame', **kwargs):
         player = game.get_current_player()
         target_player = game.get_move_target()
         if player.get_coins() < ASSASSINATION_COST:

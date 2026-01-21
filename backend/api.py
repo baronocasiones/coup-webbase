@@ -2,9 +2,11 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
 from fastapi.middleware.cors import CORSMiddleware
 from controllers.LobbyController import lobby_controller
+from controllers.GameController import game_controller
 import json
 
 from services.ConnectionManager import ConnectionManager
+from services.CoupGame import CoupGame
 
 from models.PlayerModel import PlayerModel
 from models.ChatModel import ChatModel
@@ -26,6 +28,14 @@ app.add_middleware(
 # routes
 app.include_router(players_router)
 app.include_router(chats_router)
+
+
+@app.on_event('startup')
+def startup_event():
+    game = CoupGame()
+    lobby_controller.set_game(game)
+    game_controller.set_game(game)
+    return
 
 
 @app.websocket('/ws/lobby')

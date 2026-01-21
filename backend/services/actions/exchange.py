@@ -1,16 +1,18 @@
 from services.actions.base import BaseActionStrategy
-from services.CoupGame import CoupGame
 from services.Influence import Influence
-from services.Card import Card
 
 from utils.globals import EXCHANGE_DRAW
 
 from .decorators import prompt_user_input
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from services.CoupGame import CoupGame
+
 
 class Exchange(BaseActionStrategy):
     @prompt_user_input
-    def execute(self, game: CoupGame, **kwargs):
+    def execute(self, game: 'CoupGame', **kwargs):
         current_player = game.get_current_player()
         deck = game.get_court_deck()
 
@@ -23,7 +25,7 @@ class Exchange(BaseActionStrategy):
 
     def phase_two(
         self,
-        game: CoupGame,
+        game: 'CoupGame',
         player_choice: list[Influence],
         initial_player_card: list[Influence],
         combined_influences: list[Influence]

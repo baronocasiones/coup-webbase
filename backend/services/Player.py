@@ -13,10 +13,10 @@ class Player:
         self.websocket: WebSocket
         self.isReady: bool = False
         self.moves: list[GameAction] = [
-                GameAction.INCOME,
-                GameAction.FOREIGN_AID,
-                GameAction.COUP
-                ]
+            GameAction.INCOME,
+            GameAction.FOREIGN_AID,
+            GameAction.COUP
+        ]
         self.is_lying: bool = False
 
     def __eq__(self, other) -> bool:

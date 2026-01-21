@@ -9,6 +9,7 @@ from .GameState import GameState
 from .GameAction import GameAction
 from .BlockMove import BlockMove
 from .Card import Card
+
 from .actions.assassinate import Assassinate
 from .actions.coup import Coup
 from .actions.exchange import Exchange
@@ -32,7 +33,7 @@ class CoupGame:
 
         # Current turn state
         self.current_player_index: int = 0
-        self.declared_move: Optional[GameAction]
+        self.declared_move: Optional[GameAction] = None
         self.declared_block: Optional[BlockMove]
         # not yet sure if needed
         # self.players_who_can_challenge: List[UUID] = []
@@ -145,17 +146,20 @@ class CoupGame:
                 f"Not enough players to start the game. Minimum {globals.MIN_PLAYERS} players required."
             )
         self.state = GameState.WAITING_FOR_ACTION
+        self._deal_initial_cards()
 
-        # Each player has 2 starting cards
-        for player in self.players:
-            card = self.court_deck.draw_card()
-            if card is not None:
+    def _deal_initial_cards(self) -> None:
+        """
+        Deal initial cards to players at the start of the game.
+        Each player receives 2 cards from the court deck.
+        """
+        cards_per_player = 2
+        for _ in range(cards_per_player):
+            for player in self.players:
+                card = self.court_deck.draw_card()
+                if card is None:
+                    raise ValueError("Not enough cards in the court deck to deal to players.")
                 player.add_card(card)
-            else:
-                raise ValueError("""
-                                 Not enough cards in the court deck
-                                 to deal to players.
-                                 """)
 
     def declare_move(
             self,
@@ -299,4 +303,4 @@ class CoupGame:
         if action_handler is None:
             raise ValueError("No handler found for the declared move.")
 
-        action_handler.execute(self)
+            action_handler.execute(self)

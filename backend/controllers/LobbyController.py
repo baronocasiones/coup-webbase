@@ -1,17 +1,21 @@
-from services.CoupGame import CoupGame
 from uuid import UUID
 from services.Player import Player
+from services.GameState import GameState
 from utils.exceptions import PlayerNotFoundError
+from utils.exceptions import GameInProgressError
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from services.CoupGame import CoupGame
 
 
 class LobbyController:
-    def __init__(self) -> None:
-        self.game: CoupGame = CoupGame()
-
     def remove_player(self, player_id: UUID) -> None:
         self.game.remove_player(player_id)
 
     def add_player(self, player: Player) -> None:
+        if not self.game.state == GameState.WAITING_FOR_PLAYERS:
+            raise GameInProgressError("Cannot add player while game is in progress.")
         self.game.add_player(player)
 
     def update_players_state(self, target_player_id: UUID) -> None:
@@ -37,6 +41,9 @@ class LobbyController:
 
     def add_game_chat(self, chat: dict) -> None:
         self.game.add_chat(chat)
+
+    def set_game(self, game: 'CoupGame') -> None:
+        self.game = game
 
 
 lobby_controller = LobbyController()

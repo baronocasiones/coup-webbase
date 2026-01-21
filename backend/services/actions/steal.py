@@ -1,10 +1,13 @@
 from services.actions.base import BaseActionStrategy
-from services.CoupGame import CoupGame
 from utils.globals import AMOUNT_TO_STEAL
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from services.CoupGame import CoupGame
 
 
 class Steal(BaseActionStrategy):
-    def execute(self, game: CoupGame, **kwargs):
+    def execute(self, game: 'CoupGame', **kwargs):
         player = game.get_current_player()
         target_player = game.get_move_target()
 

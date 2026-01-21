@@ -3,6 +3,7 @@ from uuid import UUID
 from controllers.GameController import game_controller
 from models.GameStateModel import GameStateModel
 
+from services.GameAction import GameAction
 
 router = APIRouter()
 game_manager = game_controller.game_manager
@@ -26,7 +27,9 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
             payload = data.get("payload", {})
 
             if action == "declare_move":
-                pass
+                move = payload.get("move")
+                GameAction(move)  # Validate move
+                # Handle declare move logic here
 
             elif action == "block":
                 pass
