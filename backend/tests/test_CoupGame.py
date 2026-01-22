@@ -40,13 +40,16 @@ def test_add_and_remove_player(game, player):
 
 def test_add_player_when_game_started(game, player):
     game.state = GameState.WAITING_FOR_ACTION
-    assert game.add_player(player) is None
+    with pytest.raises(SynchronizationError):
+        game.add_player(player)
+    assert player not in game.players
 
 
 def test_add_player_when_full(game, player):
     game.state = GameState.WAITING_FOR_PLAYERS
     game.players = [Player(str(i)) for i in range(6)]
-    assert game.add_player(player) is None
+    with pytest.raises(ValueError):
+        game.add_player(player)
 
 
 def test_start_game_insufficient_players(game, player):
@@ -75,7 +78,7 @@ def test_get_player_by_id_not_found(game, player):
         game.get_player_by_id(uuid4())
 
 
-def test_declare_move_wrong_turn(game, player, player2):
+def test_declare_move_wrong_turn(game: CoupGame, player, player2):
     game.players = [player, player2]
     game.current_player_index = 0
     game.state = GameState.WAITING_FOR_ACTION

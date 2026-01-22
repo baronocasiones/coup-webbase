@@ -114,14 +114,14 @@ class CoupGame:
         """
         Add a player to the game.
         Returns:
-            Player object if successful, None if game full or started
+            Player object if successful, None if game mfull or started
         """
         # TODO: need to raise exception instead of returning None
         if self.state != GameState.WAITING_FOR_PLAYERS:
-            return None
+            raise SynchronizationError("Cannot join a when game its already running.")
 
         if len(self.players) >= globals.MAX_PLAYERS:
-            return None
+            raise ValueError("Maximum player reached.")
 
         self.players.append(new_player)
 
