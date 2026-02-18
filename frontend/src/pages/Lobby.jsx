@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { getPlayers, removePlayer, changeReadyState } from '../services/player'
+import axios from '../axios'
 import Loader from '../components/Loader'
 
 function Lobby() {
@@ -31,6 +32,9 @@ function Lobby() {
         onError: (error) => console.error(error.message),
         onSuccess: () => queryClient.invalidateQueries(['players'])
     })
+    const isHost = players?.[0]?.id === userId
+    const allReady = Array.isArray(players) && players?.every(player => player.isReady)
+    const canStartGame = isHost && allReady && players?.length >= 2
 
 
     useEffect(() => {
@@ -59,8 +63,15 @@ function Lobby() {
 
         gameWs.current.onmessage = (event) => {
             try {
-                const players = JSON.parse(event.data);
-                queryClient.setQueryData(['players'], players);
+                if(!event.data.action){
+                    const players = JSON.parse(event.data).players;
+                    console.log(players)
+                    const action = JSON.parse(event.data).action
+                    queryClient.setQueryData(['players'], players);
+                    if(action === 'start-game'){
+                        navigate('/playroom')
+                    }
+                }
             } catch (error) {
                 console.error("Failed to parse WebSocket message:", error);
             }
@@ -88,6 +99,14 @@ function Lobby() {
         userPlayer.isReady ? userPlayer.isReady = false : userPlayer.isReady = true
         if (gameWs.current) {
             changeReadyStateMutation({ playerId: userId, gameWs: gameWs.current, newReadyState: userPlayer.isReady })
+        }
+    }
+
+    const handleStartGame = async () => {
+        const response = await axios.get('/start-game')
+        if(response.status === 200){
+            navigate('/playroom')
+            gameWs.current.send(JSON.stringify({ action: 'start-game' }))
         }
     }
 
@@ -147,7 +166,11 @@ function Lobby() {
             <div>
                 <ChatBox header="Lobby Chat" />
                 <div style={{ paddingTop: '1rem', display: 'flex', alignItems: 'center', overflow: 'hidden', marginBottom: '16px', flexDirection: 'column', rowGap: '1rem' }}>
-                    <PrimaryButton text="Ready" width='85%' onClick={handleReady} />
+                    {
+                        canStartGame ? 
+                        <PrimaryButton text="Start Game" width='85%' onClick={handleStartGame} /> :
+                        <PrimaryButton text="Ready" width='85%' onClick={handleReady} />
+                    }
                     <PrimaryButton text="Leave Lobby" width='85%' backgroundColor='rgba(255, 255, 255, 0.098)' onClick={handleDisconnect} />
                 </div>
                 <label style={{ display: 'flex', justifyContent: 'center', color: '#A8B2D1' }}>Waiting for all players to be ready</label>

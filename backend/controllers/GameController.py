@@ -1,16 +1,21 @@
-from services.ConnectionManager import ConnectionManager
 from uuid import UUID
 from typing import TYPE_CHECKING
+from services.ConnectionManager import ConnectionManager
+
 if TYPE_CHECKING:
     from services.CoupGame import CoupGame
 
 
 class GameController:
     def __init__(self):
-        self.game_manager = ConnectionManager()
+        self.game: 'CoupGame' = None
+        self.game_manager: ConnectionManager = None
 
     def set_game(self, game: 'CoupGame'):
-        self.gmae = game
+        self.game = game
+
+    def set_game_manager(self, game_manager: ConnectionManager):
+        self.game_manager = game_manager
 
     def get_player_by_id(self, user_id):
         return self.game.get_player_by_id(user_id)

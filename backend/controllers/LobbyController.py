@@ -1,8 +1,7 @@
 from uuid import UUID
+from utils.exceptions import PlayerNotFoundError, SynchronizationError
 from services.Player import Player
-from services.GameState import GameState
-from utils.exceptions import PlayerNotFoundError
-from utils.exceptions import GameInProgressError
+from services.ConnectionManager import ConnectionManager
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -10,13 +9,18 @@ if TYPE_CHECKING:
 
 
 class LobbyController:
+    def __init__(self) -> None:
+        self.game: 'CoupGame' = None
+        self.lobby_manager = None
+
     def remove_player(self, player_id: UUID) -> None:
         self.game.remove_player(player_id)
 
     def add_player(self, player: Player) -> None:
-        if not self.game.state == GameState.WAITING_FOR_PLAYERS:
-            raise GameInProgressError("Cannot add player while game is in progress.")
-        self.game.add_player(player)
+        try:
+            self.game.add_player(player)
+        except SynchronizationError as e:
+            raise SynchronizationError("Failed to add player due to synchronization error.") from e
 
     def update_players_state(self, target_player_id: UUID) -> None:
         for player in self.game.players:
@@ -44,6 +48,12 @@ class LobbyController:
 
     def set_game(self, game: 'CoupGame') -> None:
         self.game = game
+
+    def set_lobby_manager(self, lobby_manager: ConnectionManager):
+        self.lobby_manager = lobby_controller
+
+    def start_game(self) -> None:
+        self.game.start_game()
 
 
 lobby_controller = LobbyController()

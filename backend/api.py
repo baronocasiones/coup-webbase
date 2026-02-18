@@ -3,12 +3,13 @@ from uuid import UUID
 from fastapi.middleware.cors import CORSMiddleware
 from controllers.LobbyController import lobby_controller
 from controllers.GameController import game_controller
+from utils.state import game
 import json
 
 from services.ConnectionManager import ConnectionManager
 from services.CoupGame import CoupGame
 
-from models.PlayerModel import PlayerModel
+from models.LobbyPlayerModel import LobbyPlayerModel
 from models.ChatModel import ChatModel
 
 from routes.players import router as players_router
@@ -32,10 +33,16 @@ app.include_router(chats_router)
 
 @app.on_event('startup')
 def startup_event():
-    game = CoupGame()
+    # BUG PRONE
+    # might need to change when lobby is scaled up to multiple games
     lobby_controller.set_game(game)
     game_controller.set_game(game)
     return
+
+
+@app.get('/start-game')
+def start_game():
+    lobby_controller.start_game()
 
 
 @app.websocket('/ws/lobby')
@@ -46,7 +53,7 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
-    players_state = [PlayerModel(**player)
+    players_state = [LobbyPlayerModel(**vars(player))
                      .model_dump(mode='json')
                      for player in lobby_controller.get_players()
                      ]
@@ -60,7 +67,7 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
             players_state = data.get("players", None)
             if data_action == "disconnect":
                 game_manager.disconnect(user_id)
-            await game_manager.broadcast(user_id, players_state)
+            await game_manager.broadcast(user_id, {'action': data_action, 'players': players_state})
 
     except WebSocketDisconnect as e:
         game_manager.disconnect(user_id)

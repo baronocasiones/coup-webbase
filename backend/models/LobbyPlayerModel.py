@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from uuid import UUID
 
 
-class PlayerModel(BaseModel):
+class LobbyPlayerModel(BaseModel):
     name: str
     id: UUID
     isReady: bool

@@ -115,6 +115,8 @@ class CoupGame:
         Add a player to the game.
         Returns:
             Player object if successful, None if game mfull or started
+        Raises:
+            SynchronizationError: If the game has already started.
         """
         # TODO: need to raise exception instead of returning None
         if self.state != GameState.WAITING_FOR_PLAYERS:

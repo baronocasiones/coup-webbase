@@ -1,6 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from uuid import UUID
 from controllers.GameController import game_controller
+from controllers.LobbyController import lobby_controller
 from models.GameStateModel import GameStateModel
 
 from services.GameAction import GameAction
@@ -8,6 +9,9 @@ from services.GameAction import GameAction
 router = APIRouter()
 game_manager = game_controller.game_manager
 
+@router.get("/start-game")
+def start_game():
+    lobby_controller.start_game()
 
 @router.websocket("/ws/game")
 async def game_websocket(websocket: WebSocket, user_id: UUID):

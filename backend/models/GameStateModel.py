@@ -4,14 +4,14 @@ from services.BlockMove import BlockMove
 from services.Player import Player
 
 from pydantic import BaseModel
-from models.PlayerModel import PlayerModel
+from models.PlayerModel import LobbyPlayerModel
 from typing import Optional
 
 
 class GameStateModel(BaseModel):
     state: GameState
     cardsInDeck: int
-    playersState: list[PlayerModel]
+    playersState: list[LobbyPlayerModel]
     delcaredMove: Optional[GameAction]
     declaredBlock: Optional[BlockMove]
     challengeLoser: Optional[Player]
