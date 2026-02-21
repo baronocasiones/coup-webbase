@@ -66,9 +66,6 @@ class LobbyController:
         self.game.add_chat(chat)
 
     def set_game(self, game: 'CoupGame') -> None:
-        if(not self.game):
-            raise SynchronizationError("No game is currently set in the lobby.")
-
         self.game = game
 
     def set_lobby_manager(self, lobby_manager: ConnectionManager):

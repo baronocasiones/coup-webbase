@@ -102,6 +102,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: UUID):
                 raise HTTPException(400, "SynchronizationError: Chat data is not updated")
 
             response = [ChatModel(**chat).model_dump(mode='json') for chat in lobby_controller.get_game_chats()]
+            print("RESPONSE: ", response)
             await chat_manager.broadcast(user_id, response)
 
     except WebSocketDisconnect as e:

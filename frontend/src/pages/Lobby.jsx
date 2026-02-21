@@ -113,10 +113,9 @@ function Lobby() {
         gameWs.current.onmessage = (event) => {
             try {
                 if(!event.data.action){
-                    const players = JSON.parse(event.data).players;
-                    console.log(players)
+                    const players = JSON.parse(event.data).players
                     const action = JSON.parse(event.data).action
-                    queryClient.setQueryData(['players'], players);
+                    queryClient.setQueryData(['players'], players)
                     if(action === 'start-game'){
                         navigate('/playroom')
                     }

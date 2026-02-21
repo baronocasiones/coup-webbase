@@ -9,6 +9,7 @@ from .GameState import GameState
 from .GameAction import GameAction
 from .BlockMove import BlockMove
 from .Card import Card
+from .Influence import Influence
 
 from .actions.assassinate import Assassinate
 from .actions.coup import Coup
@@ -97,19 +98,23 @@ class CoupGame:
             updated_players_state: Optional[list[Player]] = None,
             update_player: Optional[Player] = None
     ) -> None:
+        # TODO: need to separate update_player and updated_players_state into two different methods
         """
         Update the state of players in the game.
         If given a list of player states, it replaces the entire players list.
         If given a single player, it updates that player's state in the
         existing list.
         """
-        if update_player:
-            for idx, player in self.players.values():
-                if player.id == update_player.id:
-                    self.players[idx] = update_player
-                    break
-        elif updated_players_state:
-            self.players = updated_players_state
+        if update_player is not None:
+            player_id = update_player.id
+            player_to_update = self.players.get(player_id)
+            if player_to_update is None:
+                raise ValueError("Player not found in the game.")
+
+            self.players[player_id] = update_player
+
+        elif updated_players_state is not None:
+            self.players = {player.id: player for player in updated_players_state}
         else:
             raise ValueError("Either updated_players_state or update_player must be provided.")
 
@@ -132,9 +137,10 @@ class CoupGame:
 
     def get_player_by_id(self, player_id: UUID) -> Player | None:
         """Retrieve a player by their ID."""
-        if player_id not in self.players.key():
-            raise ValueError("Player not found")
-        
+        player = self.players.get(player_id)
+        if player is None:
+            raise ValueError("Player not found.")
+
         return self.players[player_id]
 
     # start the game when there are 2 or more players in the lobby/room (min 2, max 6)
@@ -160,7 +166,7 @@ class CoupGame:
         """
         cards_per_player = 2
         for _ in range(cards_per_player):
-            for player in self.players:
+            for player in self.players.values():
                 card = self.court_deck.draw_card()
                 if card is None:
                     raise ValueError("Not enough cards in the court deck to deal to players.")
@@ -210,7 +216,7 @@ class CoupGame:
             raise ValueError("Invalid move type.")
 
     # process challenges to declared moves
-    def handle_challenge(self, card_to_remove: int) -> None:
+    def handle_challenge(self, card_to_remove: Influence) -> None:
         """
         Handle the challenge resolution.
         Raises:
@@ -229,10 +235,14 @@ class CoupGame:
         self.next_turn()
 
     def get_current_player(self) -> Player:
-        """
-        Retrieve the current player whose turn it is.
-        """
-        return self.players[self.current_player_index]
+        """Retrieve the current player whose turn it is."""
+        players = list(self.players.values())
+        if not 0 <= self.current_player_index < len(players):
+            raise IndexError(
+                f"current_player_index {self.current_player_index} "
+                f"out of range for {len(players)} players"
+            )
+        return players[self.current_player_index]
 
     def get_challenge_loser(self, challenger_id: UUID) -> UUID:
         """
