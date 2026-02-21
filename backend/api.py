@@ -7,7 +7,6 @@ from utils.state import game
 import json
 
 from services.ConnectionManager import ConnectionManager
-from services.CoupGame import CoupGame
 
 from models.LobbyPlayerModel import LobbyPlayerModel
 from models.ChatModel import ChatModel

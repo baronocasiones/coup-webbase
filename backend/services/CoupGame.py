@@ -22,7 +22,7 @@ from .actions.steal import Steal
 class CoupGame:
     def __init__(self) -> None:
         self.court_deck: Card = Card()
-        self.players: list[Player] = []
+        self.players: dict[UUID, Player] = {}
         self.game_id: UUID = uuid4()
         # self.move_logs: list[Logs] = []
         self.state: GameState = GameState.WAITING_FOR_PLAYERS
@@ -52,6 +52,9 @@ class CoupGame:
 
     def get_court_deck(self) -> Card:
         return self.court_deck
+
+    def get_players(self) -> list[Player]:
+        return list(self.players.values())
 
     def get_move_target(self) -> Player | None:
         """
@@ -87,7 +90,7 @@ class CoupGame:
         """
         Remove a player from the game by their ID.
         """
-        self.players = [player for player in self.players if player.id != player_id]
+        self.players.pop(player_id)
 
     def update_players_state(
             self,
@@ -101,7 +104,7 @@ class CoupGame:
         existing list.
         """
         if update_player:
-            for idx, player in enumerate(self.players):
+            for idx, player in self.players.values():
                 if player.id == update_player.id:
                     self.players[idx] = update_player
                     break
@@ -125,14 +128,14 @@ class CoupGame:
         if len(self.players) >= globals.MAX_PLAYERS:
             raise ValueError("Maximum player reached.")
 
-        self.players.append(new_player)
+        self.players[new_player.id] = new_player
 
     def get_player_by_id(self, player_id: UUID) -> Player | None:
         """Retrieve a player by their ID."""
-        for player in self.players:
-            if player.id == player_id:
-                return player
-        raise ValueError("Player not found")
+        if player_id not in self.players.key():
+            raise ValueError("Player not found")
+        
+        return self.players[player_id]
 
     # start the game when there are 2 or more players in the lobby/room (min 2, max 6)
     def start_game(self) -> None:

@@ -37,5 +37,4 @@ def remove_player(user_id: UUID):
 @router.patch("/player", response_model=list[LobbyPlayerModel])
 def update_players_state(target_player_id: UUID):
     lobby_controller.update_players_state(target_player_id)
-    print(game.players)
-    return game.players
+    return game.get_players()
