@@ -24,7 +24,7 @@ class ConnectionManager:
         await websocket.accept()
         self.active_connections[player_id] = websocket
         if players_state is not None:
-            await self.broadcast(player_id, {'acion': 'connect', 'players': players_state})
+            await self.broadcast(player_id, {'action': 'connect', 'players': players_state})
         elif chats is not None:
             await self.broadcast(player_id, chats)
         else:

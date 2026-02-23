@@ -113,11 +113,13 @@ function Lobby() {
         gameWs.current.onmessage = (event) => {
             try {
                 if(!event.data.action){
-                    const players = JSON.parse(event.data).players
-                    const action = JSON.parse(event.data).action
-                    queryClient.setQueryData(['players'], players)
+                    const data = JSON.parse(event.data)
+                    const playersData = data.players
+                    const action = data.action
+                    queryClient.setQueryData(['players'], playersData)
+                    console.log("NIGGER ", action === 'start-game')
                     if(action === 'start-game'){
-                        navigate('/playroom')
+                        navigate('/playroom', { state: { players }})
                     }
                 }
             } catch (error) {
@@ -162,7 +164,7 @@ function Lobby() {
     const handleStartGame = async () => {
         const response = await axios.get('/start-game')
         if(response.status === 200){
-            navigate('/playroom')
+            navigate('/playroom', { state: { players }})
             gameWs.current.send(JSON.stringify({ action: 'start-game' }))
         }
     }
@@ -197,7 +199,7 @@ function Lobby() {
             <div className={styles.playerListContainer}>
                 <h2>Players</h2>
                 <div style={{ height: '269px', overflowY: 'scroll' }}>
-                    {players.map((player) => (
+                    {players && players.map((player) => (
                         <div className={styles.player} key={player?.id}>
                             <span className={styles.avatar}></span>
                             <div className={styles.nameContainer}>

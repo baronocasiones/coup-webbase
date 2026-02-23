@@ -4,6 +4,7 @@ import axios from '../axios'
 // for getting all the players fro the server to update the states
 export async function getPlayers() {
     const response = await axios.get('/players')
+    console.log('RESPONSE: ', response.data)
     return response.data
 }
 
@@ -24,7 +25,6 @@ export async function removePlayer({playerId, gameWs}) {
 export async function changeReadyState({playerId, gameWs, newReadyState}){
     try{
         const { data } = await axios.patch('/player', null, {params: { target_player_id: playerId, new_ready_state: newReadyState}})
-        console.log("DATA: ", data)
         gameWs.send(JSON.stringify({
             action: 'ready',
             players: data

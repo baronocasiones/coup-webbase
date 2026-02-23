@@ -2,13 +2,13 @@ import styles from './../styles/PlayRoom.module.css'
 import PrimaryButton from './../components/PrimaryButton.jsx'
 import ChatBox from './../components/ChatBox.jsx'
 import { useEffect } from 'react'
-import  { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import  { useNavigate, useLocation } from 'react-router-dom'
 
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
     const navigate = useNavigate()
-    const players = useQueryClient().getQueryData(['players'])
+    const location = useLocation()
+    const players = location.state?.players
 
     // catch if user tries to access playroom without going through
     // lobby or if players data is not available for some reason and redirect
