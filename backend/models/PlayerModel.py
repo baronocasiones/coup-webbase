@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from uuid import UUID
 
 
-class LobbyPlayerModel(BaseModel):
+class PlayerModel(BaseModel):
     name: str
     id: UUID
     isReady: bool
@@ -10,4 +10,5 @@ class LobbyPlayerModel(BaseModel):
     isLying: bool = False
 
     class config:
+        arbitrary_types_allowed = True
         extra = "ignore"

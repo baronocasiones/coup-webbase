@@ -28,18 +28,18 @@ class CoupGame:
         # self.move_logs: list[Logs] = []
         self.state: GameState = GameState.WAITING_FOR_PLAYERS
         self.chats: list[dict] = []
-        self.move_target_id: Optional[UUID]
-        self.blocker_id: Optional[UUID]
-        self.challenger_id: Optional[UUID]
+        self.move_target_id: Optional[UUID] = None
+        self.blocker_id: Optional[UUID] = None 
+        self.challenger_id: Optional[UUID] = None
 
         # Current turn state
         self.current_player_index: int = 0
         self.declared_move: Optional[GameAction] = None
-        self.declared_block: Optional[BlockMove]
+        self.declared_block: Optional[BlockMove] = None
         # not yet sure if needed
         # self.players_who_can_challenge: List[UUID] = []
         # Challenge state
-        self.challenge_loser: Optional[Player]
+        self.challenge_loser: Optional[Player] = None
 
         self.move_handler = {
             GameAction.INCOME: Income(),
@@ -51,11 +51,23 @@ class CoupGame:
             GameAction.EXCHANGE: Exchange()
         }
 
+    def get_game_state(self) -> GameState:
+        return self.state
+
     def get_court_deck(self) -> Card:
         return self.court_deck
 
+    def get_cards_in_deck(self) -> int:
+        return len(self.court_deck.card_stack)
+
     def get_players(self) -> list[Player]:
         return list(self.players.values())
+
+    def get_declared_move(self) -> GameAction:
+        return self.declared_move
+
+    def get_declared_block(self) -> BlockMove:
+        return self.declared_block
 
     def get_move_target(self) -> Player | None:
         """
@@ -114,7 +126,7 @@ class CoupGame:
             self.players[player_id] = update_player
 
         elif updated_players_state is not None:
-            self.players = {player.id: player for player in updated_players_state}
+            self.players: dict[UUID, Player] = {player.id: player for player in updated_players_state}
         else:
             raise ValueError("Either updated_players_state or update_player must be provided.")
 
@@ -244,10 +256,12 @@ class CoupGame:
             )
         return players[self.current_player_index]
 
-    def get_challenge_loser(self, challenger_id: UUID) -> UUID:
+    def get_challenge_loser(self, challenger_id: Optional[UUID] = None) -> UUID | None:
         """
         Get the ID of the player who loses the challenge.
         """
+        if challenger_id is None:
+            return None
         if not isinstance(challenger_id, UUID):
             raise ValueError('challenger_id should be a type UUID')
         if isinstance(self.declared_move, GameAction) and not self.declared_move.is_challengeable():

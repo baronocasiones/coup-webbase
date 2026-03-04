@@ -9,26 +9,43 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[UUID, WebSocket] = {}
 
-    async def connect(self, websocket: WebSocket, player_id: UUID, players_state: Optional[list] = None, chats: Optional[list] = None):
-        """Accept a new WebSocket connection and broadcast the initial state.
+    async def connect(self,
+                      websocket: WebSocket,
+                      player_id: UUID,
+                      players_state: Optional[list] = None,
+                      chats: Optional[list] = None,
+                      game_state: Optional[dict] = None
+                      ) -> None:
+        """Accept a new WebSocket connection and send the initial state.
+
+        Accepts the incoming WebSocket, registers it in
+        :attr:`active_connections` under the given *player_id*, and sends back
+        any provided initial state data.  At least one of *players_state*,
+        *chats*, or *game_state* must be supplied.
 
         Args:
             websocket: The WebSocket connection to accept.
             player_id: The unique identifier of the connecting player.
-            players_state: The current game state to broadcast on connect.
-            chats: The chat history to broadcast on connect.
+            players_state: The current list of player states to send on
+                connect.  Sent wrapped in an ``{'action': 'connect', ...}``
+                message.
+            chats: The chat history to send on connect.
+            game_state: The current game state to send on connect.
 
         Raises:
-            ValueError: If neither players_state nor chats is provided.
+            ValueError: If none of *players_state*, *chats*, or *game_state*
+                is provided.
         """
         await websocket.accept()
         self.active_connections[player_id] = websocket
+        if all(x is None for x in (players_state, chats, game_state)):
+            raise ValueError("At least one of players_state, chats, or game_state must be provided")
         if players_state is not None:
             await self.broadcast(player_id, {'action': 'connect', 'players': players_state})
-        elif chats is not None:
+        if chats is not None:
             await self.broadcast(player_id, chats)
-        else:
-            raise ValueError("Either players_state or chats must be provided")
+        if game_state is not None:
+            await self.broadcast(player_id, game_state)
 
     def disconnect(self, player_id: UUID):
         """Remove a player's WebSocket connection from the active connections.

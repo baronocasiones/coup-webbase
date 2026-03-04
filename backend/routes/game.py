@@ -13,6 +13,10 @@ game_manager = game_controller.game_manager
 def start_game():
     lobby_controller.start_game()
 
+@router.get("/game-state", response_model=GameStateModel)
+def get_game_state():
+    return game_controller.get_game_state()
+
 @router.websocket("/ws/game")
 async def game_websocket(websocket: WebSocket, user_id: UUID):
     player = game_controller.get_player_by_id(user_id)
@@ -21,8 +25,9 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
-    initial_state = GameStateModel(game_controller.game).model_dump(mode='json')
-    await game_manager.connect(websocket, user_id, initial_state)
+    print(game_controller.get_states())
+    initial_state = GameStateModel(**game_controller.get_states()).model_dump(mode='json')
+    await game_manager.connect(websocket, user_id, game_state=initial_state)
 
     try:
         while True:

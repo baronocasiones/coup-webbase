@@ -8,11 +8,12 @@ import json
 
 from services.ConnectionManager import ConnectionManager
 
-from models.LobbyPlayerModel import LobbyPlayerModel
+from models.PlayerModel import PlayerModel
 from models.ChatModel import ChatModel
 
 from routes.players import router as players_router
 from routes.chats import router as chats_router
+from routes.game import router as game_router
 
 game_manager = ConnectionManager()
 chat_manager = ConnectionManager()
@@ -28,6 +29,7 @@ app.add_middleware(
 # routes
 app.include_router(players_router)
 app.include_router(chats_router)
+app.include_router(game_router)
 
 
 @app.on_event('startup')
@@ -52,7 +54,7 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
-    players_state = [LobbyPlayerModel(**vars(player))
+    players_state = [PlayerModel(**vars(player))
                      .model_dump(mode='json')
                      for player in lobby_controller.get_players()
                      ]
