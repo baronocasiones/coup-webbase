@@ -1,14 +1,26 @@
 import styles from './../styles/PlayRoom.module.css'
 import PrimaryButton from './../components/PrimaryButton.jsx'
 import ChatBox from './../components/ChatBox.jsx'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import  { useNavigate, useLocation } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getGame } from '../services/game.js'
+
 
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
     const navigate = useNavigate()
     const location = useLocation()
     const players = location.state?.players
+    const gameWs = useRef(null)
+    const queryClient = useQueryClient()
+    const {gameState, isLoading: gameStateIsLoading, isError: gameStateIsError} = useQuery({
+        queryKey: ['gameState', userId],
+        queryFn: getGame,
+        onSuccess: () => {
+            QueryClient.invalidateQueries(['gameState'])
+        }
+    })       
 
     // catch if user tries to access playroom without going through
     // lobby or if players data is not available for some reason and redirect
@@ -30,6 +42,28 @@ function PlayRoom() {
             document.body.style.backgroundColor = previous
         }
     }, [])
+
+    useEffect(() => {
+        const wsHost = import.meta.env.WS_HOST || 'localhost';
+        const wsPort = import.meta.env.WS_PORT || '8000';
+        gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`)
+
+        gameWs.current.onmessage = (event) => {
+            const data = JSON.parse(event.data)
+            console.log('Received message:', data)
+        }
+
+        gameWs.current.onerror = (error) => {
+            console.error('WebSocket error:', error)
+        }
+
+        return () => {
+            if (gameWs.current) {
+                gameWs.current.close()
+            }
+        }
+    }, [])
+
 
     return (
         <>

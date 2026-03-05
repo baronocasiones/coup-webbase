@@ -117,7 +117,6 @@ function Lobby() {
                     const playersData = data.players
                     const action = data.action
                     queryClient.setQueryData(['players'], playersData)
-                    console.log("NIGGER ", action === 'start-game')
                     if(action === 'start-game'){
                         navigate('/playroom', { state: { players }})
                     }

@@ -4,7 +4,6 @@ import axios from '../axios'
 // for getting all the players fro the server to update the states
 export async function getPlayers() {
     const response = await axios.get('/players')
-    console.log('RESPONSE: ', response.data)
     return response.data
 }
 

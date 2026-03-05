@@ -3,17 +3,11 @@ from uuid import UUID
 from controllers.GameController import game_controller
 from controllers.LobbyController import lobby_controller
 from models.GameStateModel import GameStateModel
+from utils.state import game
 
 from services.GameAction import GameAction
 
 router = APIRouter()
-game_manager = game_controller.game_manager
-
-@router.get("/start-game")
-def start_game():
-    lobby_controller.start_game()
-
-@router.get("/game-state", response_model=GameStateModel)
 def get_game_state():
     return game_controller.get_game_state()
 
@@ -25,9 +19,8 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
-    print(game_controller.get_states())
     initial_state = GameStateModel(**game_controller.get_states()).model_dump(mode='json')
-    await game_manager.connect(websocket, user_id, game_state=initial_state)
+    await game_controller.game_manager.connect(websocket, user_id, game_state=initial_state)
 
     try:
         while True:
@@ -53,7 +46,7 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                 print(f"Unknown action: {action}")
 
     except WebSocketDisconnect:
-        game_manager.disconnect(user_id)
+        game_controller.game_manager.disconnect(user_id)
 
     except Exception as e:
         print(f"WebSocket error: {e}")

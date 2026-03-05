@@ -37,12 +37,13 @@ def startup_event():
     # BUG PRONE
     # might need to change when lobby is scaled up to multiple games
     lobby_controller.set_game(game)
-    game_controller.set_game(game)
     return
 
 
 @app.get('/start-game')
 def start_game():
+    game_controller.set_game(game)
+    game_controller.set_game_manager(game_manager)
     lobby_controller.start_game()
 
 
