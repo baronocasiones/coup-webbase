@@ -1,7 +1,7 @@
 import axios from '../axios'
 
 
-export const getGame = async () => {
+export async function getGame() {
     const response = await axios.get('/game-state')
     return response.data
 }

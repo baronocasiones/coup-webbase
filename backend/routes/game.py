@@ -8,8 +8,13 @@ from utils.state import game
 from services.GameAction import GameAction
 
 router = APIRouter()
+
+
+@router.get("/game-state", response_model=GameStateModel)
 def get_game_state():
-    return game_controller.get_game_state()
+    print("GAME STATE: ", game_controller.get_game_states())
+    return game_controller.get_game_states()
+
 
 @router.websocket("/ws/game")
 async def game_websocket(websocket: WebSocket, user_id: UUID):
@@ -19,7 +24,7 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
-    initial_state = GameStateModel(**game_controller.get_states()).model_dump(mode='json')
+    initial_state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
     await game_controller.game_manager.connect(websocket, user_id, game_state=initial_state)
 
     try:

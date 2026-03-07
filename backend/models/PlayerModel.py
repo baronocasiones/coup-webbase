@@ -8,6 +8,7 @@ class PlayerModel(BaseModel):
     isReady: bool
     numberOfCards: int = 0
     isLying: bool = False
+    coins: int
 
     class config:
         arbitrary_types_allowed = True

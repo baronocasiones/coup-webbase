@@ -1,38 +1,32 @@
 import styles from './../styles/PlayRoom.module.css'
 import PrimaryButton from './../components/PrimaryButton.jsx'
 import ChatBox from './../components/ChatBox.jsx'
-import { useEffect, useRef } from 'react'
-import  { useNavigate, useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getGame } from '../services/game.js'
-
+import Loader from '../components/Loader.jsx'
+import { getPlayer } from "../utils.js"
 
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
     const navigate = useNavigate()
-    const location = useLocation()
-    const players = location.state?.players
     const gameWs = useRef(null)
     const queryClient = useQueryClient()
-    const {gameState, isLoading: gameStateIsLoading, isError: gameStateIsError} = useQuery({
-        queryKey: ['gameState', userId],
+    const { data: gameState, isLoading: gameStateIsLoading } = useQuery({
+        queryKey: ['gameState'],
         queryFn: getGame,
-        onSuccess: () => {
-            QueryClient.invalidateQueries(['gameState'])
+        onError: (error) => {
+            console.error("Error on initial fetching the inital game state: ", error)
+            navigate('/lobby')
         }
-    })       
+    })
+    const players = gameState?.playersState
 
     // catch if user tries to access playroom without going through
     // lobby or if players data is not available for some reason and redirect
     // them to the appropriate page
-    useEffect(() => {
-        if(!userId) {
-            navigate('/')
-        }
-        if(!players){
-            navigate('/lobby')
-        }
-    }, [userId, players])
+
 
     useEffect(() => {
         const previous = document.body.style.backgroundColor
@@ -43,27 +37,33 @@ function PlayRoom() {
         }
     }, [])
 
-    useEffect(() => {
-        const wsHost = import.meta.env.WS_HOST || 'localhost';
-        const wsPort = import.meta.env.WS_PORT || '8000';
-        gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`)
+    // useEffect(() => {
+    //     const wsHost = import.meta.env.WS_HOST || 'localhost';
+    //     const wsPort = import.meta.env.WS_PORT || '8000';
+    //     gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`)
+    //
+    //     gameWs.current.onmessage = (event) => {
+    //         const data = JSON.parse(event.data)
+    //         console.log('Received message:', data)
+    //     }
+    //
+    //     gameWs.current.onerror = (error) => {
+    //         console.error('WebSocket error:', error)
+    //     }
+    //
+    //     return () => {
+    //         if (gameWs.current) {
+    //             gameWs.current.close()
+    //         }
+    //     }
+    // }, [])
 
-        gameWs.current.onmessage = (event) => {
-            const data = JSON.parse(event.data)
-            console.log('Received message:', data)
-        }
-
-        gameWs.current.onerror = (error) => {
-            console.error('WebSocket error:', error)
-        }
-
-        return () => {
-            if (gameWs.current) {
-                gameWs.current.close()
-            }
-        }
-    }, [])
-
+    if (gameStateIsLoading) {
+        return <Loader />
+    }
+    if (!userId) {
+        navigate('/')
+    }
 
     return (
         <>
@@ -92,42 +92,22 @@ function PlayRoom() {
                 <div className={styles.mainContainer}>
                     <div className={styles.gameContainer}>
                         <div className={styles.playersContainer}>
-                            <div className={styles.player}>
-                                <span className={styles.profilePic}></span>
-                                <span className={styles.playerName}>Marcus</span>
-                                <div className={styles.coins}>
-                                    <span className={styles.coinIcon}></span>
-                                    <span className={styles.coinValue}>5</span>
+
+                            {players.map(player => player.id != userId && (
+                                <div key={player.id} className={styles.player}>
+                                    <span className={styles.profilePic}></span>
+                                    <span className={styles.playerName}>{player.name}</span>
+                                    <div className={styles.coins}>
+                                        <span className={styles.coinIcon}></span>
+                                        <span className={styles.coinValue}>{player.coins}</span>
+                                    </div>
+                                    <div className={styles.cardsContainer}>
+                                        <span className={styles.card}></span>
+                                        <span className={styles.card}></span>
+                                    </div>
                                 </div>
-                                <div className={styles.cardsContainer}>
-                                    <span className={styles.card}></span>
-                                    <span className={styles.card}></span>
-                                </div>
-                            </div>
-                            <div className={styles.player}>
-                                <span className={styles.profilePic}></span>
-                                <span className={styles.playerName}>Sophia</span>
-                                <div className={styles.coins}>
-                                    <span className={styles.coinIcon}></span>
-                                    <span className={styles.coinValue}>3</span>
-                                </div>
-                                <div className={styles.cardsContainer}>
-                                    <span className={styles.card}></span>
-                                    <span className={styles.card}></span>
-                                </div>
-                            </div>
-                            <div className={styles.player}>
-                                <span className={styles.profilePic}></span>
-                                <span className={styles.playerName}>James</span>
-                                <div className={styles.coins}>
-                                    <span className={styles.coinIcon}></span>
-                                    <span className={styles.coinValue}>7</span>
-                                </div>
-                                <div className={styles.cardsContainer}>
-                                    <span className={styles.card}></span>
-                                    <span className={styles.card}></span>
-                                </div>
-                            </div>
+                            ))}
+
                         </div>
                         <div className={styles.movePreview}>
                             <h3 style={{ textAlign: 'center' }}>Marcus claims to be the Duke</h3>

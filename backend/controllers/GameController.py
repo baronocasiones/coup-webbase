@@ -24,7 +24,7 @@ class GameController:
     async def send_options_to_user(self, user_id: UUID, payload: dict | list):
         await self.game_manager.send_personal_message(user_id, payload)
 
-    def get_states(self) -> dict:
+    def get_game_states(self) -> dict:
         loser_id = self.game.get_challenge_loser()
         return {
             "state": self.game.get_game_state(),
