@@ -2,6 +2,7 @@ from uuid import uuid4, UUID
 from .GameAction import GameAction
 from .Influence import Influence
 from fastapi import WebSocket
+from services.BlockMove import BlockMove
 
 
 class Player:
@@ -12,7 +13,7 @@ class Player:
         self.coins: int = 2
         self.websocket: WebSocket
         self.isReady: bool = False
-        self.moves: list[GameAction] = [
+        self.moves: list[GameAction | BlockMove] = [
             GameAction.INCOME,
             GameAction.FOREIGN_AID,
             GameAction.COUP

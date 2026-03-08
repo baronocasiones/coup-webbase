@@ -29,11 +29,6 @@ function PlayRoom() {
         }
     })
 
-    // catch if user tries to access playroom without going through
-    // lobby or if players data is not available for some reason and redirect
-    // them to the appropriate page
-
-
     useEffect(() => {
         const previous = document.body.style.backgroundColor
         document.body.style.backgroundColor = '#0F1419'
@@ -74,93 +69,118 @@ function PlayRoom() {
 
     return (
         <>
-            <div>
-                <div className={styles.header}>
-                    <div className={styles.currentTurnContainer}>
-                        <label style={{ color: '#A8B2D1' }}>Current Turn </label>
-                        <span style={{ color: '#E94560' }}>Alexandra's Turn</span>
-                    </div>
-                    <div className={styles.statsContainer}>
-                        <div>
-                            <label className={styles.statLabels}>Round </label><br />
-                            <span>3</span>
-                        </div>
-                        <div>
-                            <label className={styles.statLabels}>Players Left </label><br />
-                            <span>4/4</span>
-                        </div>
-                        <div>
-                            <label className={styles.statLabels}>Treasury </label><br />
-                            <span>50</span>
-                        </div>
-                    </div>
-                    <PrimaryButton text='Menu' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
+            {/* Header */}
+            <div className={styles.header}>
+                <div className={styles.currentTurnContainer}>
+                    <label className={styles.turnLabel}>Current Turn</label>
+                    <span className={styles.turnName}>Alexandra's Turn</span>
                 </div>
-                <div className={styles.mainContainer}>
-                    <div className={styles.gameContainer}>
-                        <div className={styles.playersContainer}>
-
-                            {players.map(player => player.id != userId && (
-                                <div key={player.id} className={styles.player}>
-                                    <span className={styles.profilePic}></span>
-                                    <span className={styles.playerName}>{player.name}</span>
-                                    <div className={styles.coins}>
-                                        <span className={styles.coinIcon}></span>
-                                        <span className={styles.coinValue}>{player.coins}</span>
-                                    </div>
-                                    <div className={styles.cardsContainer}>
-                                        {Array.from({length: player.numberOfCards}, (_, i) => (
-                                            <span key={i} className={styles.card}></span>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-
-                        </div>
-                        <div className={styles.movePreview}>
-                            <h3 style={{ textAlign: 'center' }}>Marcus claims to be the Duke</h3>
-                            <span style={{ textAlign: 'center', color: '#A8B2D1' }}>Marcus is taking 3 coins from the treasury. You can challenge this claim or let it pass.</span>
-                            <div className={styles.challengeButton}>
-                                <PrimaryButton text='Challenge' width='auto' />
-                                <PrimaryButton text='Pass' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            </div>
-                        </div>
+                <div className={styles.statsContainer}>
+                    <div className={styles.statItem}>
+                        <label className={styles.statLabels}>Round</label>
+                        <span className={styles.statValue}>3</span>
                     </div>
-                    <ChatBox header="Game Log" withSubmission={false} />
+                    <div className={styles.statDivider} />
+                    <div className={styles.statItem}>
+                        <label className={styles.statLabels}>Players Left</label>
+                        <span className={styles.statValue}>4 / 4</span>
+                    </div>
+                    <div className={styles.statDivider} />
+                    <div className={styles.statItem}>
+                        <label className={styles.statLabels}>Treasury</label>
+                        <span className={styles.statValue}>💰 50</span>
+                    </div>
                 </div>
+                <PrimaryButton text='Menu' backgroundColor='rgba(255, 255, 255, 0.08)' width='auto' />
             </div>
+
+            {/* Main content */}
+            <div className={styles.mainContainer}>
+                <div className={styles.gameContainer}>
+
+                    {/* Opponents */}
+                    <div className={styles.playersContainer}>
+                        {players.map(player => player.id != userId && (
+                            <div key={player.id} className={styles.player}>
+                                <div className={styles.avatarWrapper}>
+                                    <span className={styles.profilePic}></span>
+                                    <span className={styles.onlineIndicator}></span>
+                                </div>
+                                <span className={styles.playerName}>{player.name}</span>
+                                <div className={styles.coins}>
+                                    <span className={styles.coinIcon}></span>
+                                    <span className={styles.coinValue}>{player.coins}</span>
+                                </div>
+                                <div className={styles.cardsContainer}>
+                                    {Array.from({ length: player.numberOfCards }, (_, i) => (
+                                        <span key={i} className={styles.card}></span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                </div>
+
+                <ChatBox header="Game Log" withSubmission={false} />
+            </div>
+
+            {/* User panel */}
             <div className={styles.userUIContainer}>
                 <div className={styles.userInfo}>
                     <div className={styles.userIdentifier}>
-                        <span className={styles.profilePic} style={{ backgroundColor: '#E94560', width: '56px', height: '56px' }}></span>
-                        <h3 style={{ alignContent: 'center' }}>You ({userPlayer.name})</h3>
+                        <div className={styles.userAvatarWrapper}>
+                            <span className={styles.profilePic} style={{ backgroundColor: '#E94560', width: '52px', height: '52px' }}></span>
+                            <span className={styles.youBadge}>You</span>
+                        </div>
+                        <div className={styles.userNameBlock}>
+                            <h3 className={styles.userName}>{userPlayer.name}</h3>
+                            <span className={styles.userStatus}>● Active</span>
+                        </div>
                     </div>
                     <div className={styles.userCoins}>
-                        <span style={{ width: '28px', height: '28px', borderRadius: '100%', display: 'inline-block', backgroundColor: '#FFD700' }}></span>
-                        <span style={{ color: '#FFD700' }}>{userPlayer.coins}</span>
+                        <span className={styles.coinIcon} style={{ width: '24px', height: '24px' }}></span>
+                        <span className={styles.userCoinValue}>{userPlayer.coins} coins</span>
                     </div>
                 </div>
+
                 <div className={styles.userCardsContainer}>
                     <span className={styles.userCard}>
-                        <h4>{userPlayer.cards[0]}</h4>
-                        <label>Take 3 coins</label>
+                        <span className={styles.userCardIcon}>🃏</span>
+                        <h4 className={styles.userCardName}>{userPlayer.cards[0]}</h4>
+                        <label className={styles.userCardAbility}>Take 3 coins</label>
                     </span>
                     <span className={styles.userCard}>
-                        <h4>{userPlayer.cards[1]}</h4>
-                        <label>Pay 3 to eliminate</label>
+                        <span className={styles.userCardIcon}>🃏</span>
+                        <h4 className={styles.userCardName}>{userPlayer.cards[1]}</h4>
+                        <label className={styles.userCardAbility}>Pay 3 to eliminate</label>
                     </span>
+
                     <div className={styles.userMoves}>
-                        <div style={{ display: 'flex', columnGap: '12px', justifyContent: 'center' }}>
-                            <PrimaryButton text='Income' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Foreign Aid' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
+                        <p className={styles.movesLabel}>Your Actions</p>
+                        <div className={styles.movesRow}>
+                            <PrimaryButton text='Income' backgroundColor='rgba(255,255,255,0.07)' width='auto' />
+                            <PrimaryButton text='Foreign Aid' backgroundColor='rgba(255,255,255,0.07)' width='auto' />
                             <PrimaryButton text='Coup (7)' width='auto' />
                         </div>
-                        <div style={{ display: 'flex', columnGap: '12px', justifyContent: 'center' }}>
-                            <PrimaryButton text='Tax (Duke)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Assassinate (Assassin)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Steal (Captain)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Exchange (Ambassador)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
+                        <div className={styles.movesRow}>
+                            <PrimaryButton text='Tax — Duke' backgroundColor='rgba(102,126,234,0.25)' width='auto' />
+                            <PrimaryButton text='Assassinate' backgroundColor='rgba(233,69,96,0.2)' width='auto' />
+                            <PrimaryButton text='Steal — Captain' backgroundColor='rgba(102,126,234,0.25)' width='auto' />
+                            <PrimaryButton text='Exchange — Ambassador' backgroundColor='rgba(102,126,234,0.25)' width='auto' />
                         </div>
+                    </div>
+                </div>
+                {/* Move preview */}
+                <div className={styles.movePreview}>
+                    <div className={styles.movePreviewBadge}>Action</div>
+                    <h3 className={styles.movePreviewTitle}>Marcus claims to be the Duke</h3>
+                    <p className={styles.movePreviewDesc}>
+                        Marcus is taking 3 coins from the treasury. You can challenge this claim or let it pass.
+                    </p>
+                    <div className={styles.challengeButton}>
+                        <PrimaryButton text='⚔️ Challenge' width='auto' />
+                        <PrimaryButton text='Pass' backgroundColor='rgba(255, 255, 255, 0.08)' width='auto' />
                     </div>
                 </div>
             </div>

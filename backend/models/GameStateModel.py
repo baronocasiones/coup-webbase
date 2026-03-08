@@ -14,6 +14,7 @@ class GameStateModel(BaseModel):
     declaredMove: Optional[GameAction]
     declaredBlock: Optional[BlockMove]
     challengeLoser: Optional[PlayerModel]
+    latestMove: Optional[str] = None
 
     class config:
         extra = 'ignore'

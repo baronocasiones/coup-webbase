@@ -1,162 +1,375 @@
+/* ── Header ──────────────────────────────────────────────── */
 .header {
     display: flex;
-    column-gap: 30%;
-    padding: 0px 40px;
+    align-items: center;
     justify-content: space-between;
+    padding: 14px 40px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
     width: 100vw;
-    position: relative;
-    top: 10px;
+    box-sizing: border-box;
+    position: absolute;
+    visibility: hidden;
+}
+
+.turnLabel {
+    font-size: 0.75rem;
+    color: #A8B2D1;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.turnName {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #E94560;
 }
 
 .currentTurnContainer {
     display: flex;
     flex-direction: column;
-    white-space: nowrap;
+    gap: 4px;
 }
 
 .statsContainer {
     display: flex;
-    column-gap: 32px;
-    white-space: nowrap;
+    align-items: center;
+    column-gap: 24px;
+    background: rgba(255,255,255,0.04);
+    padding: 10px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
 }
 
 .statLabels {
+    font-size: 0.7rem;
     color: #A8B2D1;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
 }
 
-.mainContainer{
+.statValue {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.statDivider {
+    width: 1px;
+    height: 32px;
+    background: rgba(255,255,255,0.1);
+}
+
+/* ── Layout ──────────────────────────────────────────────── */
+.mainContainer {
     display: flex;
-    padding: 24px 40px 24px;
+    padding: 24px 40px;
+    gap: 24px;
+    box-sizing: border-box;
     width: 100vw;
 }
 
-.gameContainer{
+.gameContainer {
     display: flex;
     flex-direction: column;
+    gap: 16px;
+    flex: 1;
 }
 
-.profilePic{
-    width: 64px;
-    height: 64px;
+/* ── Opponent players ────────────────────────────────────── */
+.playersContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.07);
+}
+
+.player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: border-color 0.2s;
+}
+
+.player:hover {
+    border-color: rgba(102,126,234,0.5);
+}
+
+.avatarWrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.profilePic {
+    width: 52px;
+    height: 52px;
     border-radius: 100%;
     background-color: #667EEA;
     display: inline-block;
 }
 
-.playersContainer{
-    display: flex;
-    padding: 20px;
-    column-gap: 5rem;
-    width: auto;
+.onlineIndicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #4caf50;
+    border: 2px solid #0F1419;
+    display: block;
 }
 
-.player{
+.playerName {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #E2E8F0;
+}
+
+.coins {
     display: flex;
-    flex-direction: column;
-    row-gap: 12px;
-    padding: 16px;
     align-items: center;
+    gap: 6px;
+    background: rgba(255,215,0,0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
 }
 
-.playerName{
-    text-align: center;
-}
-
-.coinIcon{
-    width: 20px;
-    height: 20px;
+.coinIcon {
+    width: 16px;
+    height: 16px;
     border-radius: 100%;
     background-color: #FFD700;
     display: inline-block;
+    flex-shrink: 0;
 }
 
-.coinValue{
+.coinValue {
+    font-size: 0.85rem;
+    font-weight: 700;
     color: #FFD700;
 }
 
-.coins{
+.cardsContainer {
     display: flex;
-    column-gap: 8px;
-    align-items: center;
-    justify-content: center;
+    gap: 6px;
 }
 
-.cardsContainer{
-    display: flex;
-    column-gap: 8px;
-}
-
-.card{
-    width: 40px;
-    height: 56px;
+.card {
+    width: 36px;
+    height: 52px;
     display: inline-block;
-    background-color: #E94560;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #E94560, #c73652);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(233,69,96,0.3);
 }
 
+/* ── Move preview ────────────────────────────────────────── */
 .movePreview {
     display: flex;
     flex-direction: column;
-    padding: 1rem;
-    row-gap: 20px;
+    gap: 12px;
+    padding: 20px 24px;
+    background: rgb(15,20,25);
+    border-radius: 16px;
+    border: 1px solid rgba(255,215,0,0.15);
+    position: absolute;
+    top: 25%;
+    left: 25%;
+    z-index: 1000;
+    visibility: hidden;
+}
+
+.movePreviewBadge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #FFD700;
+    background: rgba(255,215,0,0.12);
+    border-radius: 20px;
+    padding: 3px 10px;
+    width: fit-content;
+}
+
+.movePreviewTitle {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+}
+
+.movePreviewDesc {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #A8B2D1;
+    text-align: center;
+    line-height: 1.5;
 }
 
 .challengeButton {
     display: flex;
-    column-gap: 1rem;
+    gap: 12px;
     justify-content: center;
 }
 
-.userUIContainer{
+/* ── User panel ──────────────────────────────────────────── */
+.userUIContainer {
     display: flex;
     flex-direction: column;
-    padding: 0px 24px;
-    row-gap: 20px;
+    padding: 16px 40px 24px;
+    gap: 16px;
+    background: rgba(255,255,255,0.02);
+    border-top: 1px solid rgba(255,255,255,0.07);
 }
 
-.userInfo{
+.userInfo {
     display: flex;
-    gap: 43vw;
-}
-
-.userIdentifier{
-    display: flex;
-    column-gap: 1rem;
-}
-
-.userCoins{
-    display: flex;
-    background-color: rgba(255, 215, 0, 0.148);
-    padding: 12px 24px 12px;
-    border-radius: 8px;
-    column-gap: 12px;
-    justify-content: center;
     align-items: center;
+    justify-content: space-between;
 }
 
-.userCardsContainer{
+.userIdentifier {
     display: flex;
-    column-gap: 16px;
-}
-
-.userCard{
-    display: flex;
-    width: 120px;
-    height: 89px;
-    border-radius: 8px;
-    background-color: #667EEA;
-    justify-content: center;
     align-items: center;
+    gap: 14px;
+}
+
+.userAvatarWrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.youBadge {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: #E94560;
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.userNameBlock {
+    display: flex;
     flex-direction: column;
+    gap: 2px;
+}
+
+.userName {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.userStatus {
+    font-size: 0.75rem;
+    color: #4caf50;
+}
+
+.userCoins {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,215,0,0.1);
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,215,0,0.2);
+}
+
+.userCoinValue {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #FFD700;
+}
+
+.userCardsContainer {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.userCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 130px;
+    height: 100px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667EEA, #4f63d2);
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 4px 16px rgba(102,126,234,0.3);
+    padding: 8px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.userCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(102,126,234,0.45);
+}
+
+.userCardIcon {
+    font-size: 1.2rem;
+}
+
+.userCardName {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
     text-align: center;
 }
 
-.userMoves{
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 16px;
+.userCardAbility {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.7);
+    text-align: center;
 }
 
+.userMoves {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
 
+.movesLabel {
+    margin: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #A8B2D1;
+}
+
+.movesRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
