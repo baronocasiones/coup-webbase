@@ -1,9 +1,8 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from uuid import UUID
 from controllers.GameController import game_controller
-from controllers.LobbyController import lobby_controller
 from models.GameStateModel import GameStateModel
-from utils.state import game
+from models.UserPlayerModel import UserPlayerModel
 
 from services.GameAction import GameAction
 
@@ -12,8 +11,18 @@ router = APIRouter()
 
 @router.get("/game-state", response_model=GameStateModel)
 def get_game_state():
-    print("GAME STATE: ", game_controller.get_game_states())
     return game_controller.get_game_states()
+
+
+@router.get('/user-player', response_model=UserPlayerModel)
+def get_user_player(user_id: UUID):
+    player = game_controller.get_player_by_id(user_id)
+    return UserPlayerModel(
+        name=player.name,
+        id=player.id,
+        coins=player.coins,
+        cards=[card.name for card in player.cards],
+    )
 
 
 @router.websocket("/ws/game")

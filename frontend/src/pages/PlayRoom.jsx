@@ -4,9 +4,8 @@ import ChatBox from './../components/ChatBox.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getGame } from '../services/game.js'
+import { getGame, getUserPlayer } from '../services/game.js'
 import Loader from '../components/Loader.jsx'
-import { getPlayer } from "../utils.js"
 
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
@@ -22,6 +21,13 @@ function PlayRoom() {
         }
     })
     const players = gameState?.playersState
+    const { data: userPlayer, isLoading: userPlayerIsLoading } = useQuery({
+        queryKey: ['gameState', userId],
+        queryFn: () => getUserPlayer(userId),
+        onError: (error) => {
+            console.error(error)
+        }
+    })
 
     // catch if user tries to access playroom without going through
     // lobby or if players data is not available for some reason and redirect
@@ -37,28 +43,29 @@ function PlayRoom() {
         }
     }, [])
 
-    // useEffect(() => {
-    //     const wsHost = import.meta.env.WS_HOST || 'localhost';
-    //     const wsPort = import.meta.env.WS_PORT || '8000';
-    //     gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`)
-    //
-    //     gameWs.current.onmessage = (event) => {
-    //         const data = JSON.parse(event.data)
-    //         console.log('Received message:', data)
-    //     }
-    //
-    //     gameWs.current.onerror = (error) => {
-    //         console.error('WebSocket error:', error)
-    //     }
-    //
-    //     return () => {
-    //         if (gameWs.current) {
-    //             gameWs.current.close()
-    //         }
-    //     }
-    // }, [])
+    useEffect(() => {
+        const wsHost = import.meta.env.WS_HOST || 'localhost';
+        const wsPort = import.meta.env.WS_PORT || '8000';
+        gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`)
 
-    if (gameStateIsLoading) {
+        gameWs.current.onmessage = (event) => {
+            const data = JSON.parse(event.data)
+            queryClient.setQueryData(['gameState'], data)
+            console.log('Received message:', data)
+        }
+
+        gameWs.current.onerror = (error) => {
+            console.error('WebSocket error:', error)
+        }
+
+        return () => {
+            if (gameWs.current) {
+                gameWs.current.close()
+            }
+        }
+    }, [])
+
+    if (gameStateIsLoading || userPlayerIsLoading) {
         return <Loader />
     }
     if (!userId) {
@@ -102,8 +109,9 @@ function PlayRoom() {
                                         <span className={styles.coinValue}>{player.coins}</span>
                                     </div>
                                     <div className={styles.cardsContainer}>
-                                        <span className={styles.card}></span>
-                                        <span className={styles.card}></span>
+                                        {Array.from({length: player.numberOfCards}, (_, i) => (
+                                            <span key={i} className={styles.card}></span>
+                                        ))}
                                     </div>
                                 </div>
                             ))}
@@ -125,20 +133,20 @@ function PlayRoom() {
                 <div className={styles.userInfo}>
                     <div className={styles.userIdentifier}>
                         <span className={styles.profilePic} style={{ backgroundColor: '#E94560', width: '56px', height: '56px' }}></span>
-                        <h3 style={{ alignContent: 'center' }}>You (Alexandra)</h3>
+                        <h3 style={{ alignContent: 'center' }}>You ({userPlayer.name})</h3>
                     </div>
                     <div className={styles.userCoins}>
                         <span style={{ width: '28px', height: '28px', borderRadius: '100%', display: 'inline-block', backgroundColor: '#FFD700' }}></span>
-                        <span style={{ color: '#FFD700' }}>4</span>
+                        <span style={{ color: '#FFD700' }}>{userPlayer.coins}</span>
                     </div>
                 </div>
                 <div className={styles.userCardsContainer}>
                     <span className={styles.userCard}>
-                        <h4>DUKE</h4>
+                        <h4>{userPlayer.cards[0]}</h4>
                         <label>Take 3 coins</label>
                     </span>
                     <span className={styles.userCard}>
-                        <h4>ASSASSIN</h4>
+                        <h4>{userPlayer.cards[1]}</h4>
                         <label>Pay 3 to eliminate</label>
                     </span>
                     <div className={styles.userMoves}>

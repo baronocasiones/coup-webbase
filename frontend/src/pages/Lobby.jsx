@@ -149,7 +149,7 @@ function Lobby() {
      */
     const handleReady = () => {
         const userPlayer = players.find(player => player.id === userId)
-        userPlayer.isReady ? userPlayer.isReady = false : userPlayer.isReady = true
+        !userPlayer.isReady
         if (gameWs.current) {
             changeReadyStateMutation({ playerId: userId, gameWs: gameWs.current, newReadyState: userPlayer.isReady })
         }
@@ -163,7 +163,7 @@ function Lobby() {
     const handleStartGame = async () => {
         const response = await axios.get('/start-game')
         if(response.status === 200){
-            navigate('/playroom', { state: { players }})
+            navigate('/playroom')
             gameWs.current.send(JSON.stringify({ action: 'start-game' }))
         }
     }

@@ -74,7 +74,6 @@ class LobbyController:
     def start_game(self) -> None:
         if(not self.game):
             raise SynchronizationError("No game is currently set in the lobby.")
-
         self.game.start_game()
 
 
