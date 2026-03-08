@@ -171,17 +171,17 @@ function PlayRoom() {
                         </div>
                     </div>
                 </div>
-                {/* Move preview */}
-                <div className={styles.movePreview}>
-                    <div className={styles.movePreviewBadge}>Action</div>
-                    <h3 className={styles.movePreviewTitle}>Marcus claims to be the Duke</h3>
-                    <p className={styles.movePreviewDesc}>
-                        Marcus is taking 3 coins from the treasury. You can challenge this claim or let it pass.
-                    </p>
-                    <div className={styles.challengeButton}>
-                        <PrimaryButton text='⚔️ Challenge' width='auto' />
-                        <PrimaryButton text='Pass' backgroundColor='rgba(255, 255, 255, 0.08)' width='auto' />
-                    </div>
+            </div>
+            {/* Move preview */}
+            <div className={styles.movePreview}>
+                <div className={styles.movePreviewBadge}>Action</div>
+                <h3 className={styles.movePreviewTitle}>Marcus claims to be the Duke</h3>
+                <p className={styles.movePreviewDesc}>
+                    Marcus is taking 3 coins from the treasury. You can challenge this claim or let it pass.
+                </p>
+                <div className={styles.challengeButton}>
+                    <PrimaryButton text='⚔️ Challenge' width='auto' />
+                    <PrimaryButton text='Pass' backgroundColor='rgba(255, 255, 255, 0.08)' width='auto' />
                 </div>
             </div>
         </>
