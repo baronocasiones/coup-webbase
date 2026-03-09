@@ -78,7 +78,6 @@ class ConnectionManager:
             sender: The unique identifier of the player sending the message.
             message: The JSON-serializable message to broadcast.
         """
-        print("MESSAGE:", message)
         for id, connection in self.active_connections.items():
             if id != sender:
                 await connection.send_json(message)

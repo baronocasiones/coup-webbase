@@ -33,7 +33,7 @@ class CoupGame:
         self.challenger_id: Optional[UUID] = None
 
         # Current turn state
-        self.current_player_index: int = 0
+        self.currentTurnIndex: int = 0
         self.declared_move: Optional[GameAction] = None
         self.declared_block: Optional[BlockMove] = None
         # not yet sure if needed
@@ -63,11 +63,11 @@ class CoupGame:
     def get_players(self) -> list[Player]:
         return list(self.players.values())
 
-    def get_declared_move(self) -> GameAction:
+    def get_declared_move(self) -> GameAction | None:
         return self.declared_move
 
-    def get_declared_block(self) -> BlockMove:
-        return self.declared_block
+    def get_declared_block(self) -> BlockMove | None:
+        return self.declared_block  
 
     def get_move_target(self) -> Player | None:
         """
@@ -126,7 +126,7 @@ class CoupGame:
             self.players[player_id] = update_player
 
         elif updated_players_state is not None:
-            self.players: dict[UUID, Player] = {player.id: player for player in updated_players_state}
+            self.players = {player.id: player for player in updated_players_state}
         else:
             raise ValueError("Either updated_players_state or update_player must be provided.")
 
@@ -188,8 +188,8 @@ class CoupGame:
             self,
             player_id: UUID,
             move: GameAction | BlockMove,
-            target_id: Optional[UUID],
-            blocker_id: Optional[UUID]
+            target_id: Optional[UUID] = None,
+            blocker_id: Optional[UUID] = None
     ) -> None:
         """
         Handle a player's declared move.
@@ -212,6 +212,11 @@ class CoupGame:
             raise ValueError("This move cannot be blocked.")
 
         # LOGIC
+        if move == GameAction.INCOME: 
+            self.declared_move = move
+            self.perform_action()
+            self.next_turn()
+
         if isinstance(move, GameAction) and move.is_targetable():
             if target_id is None:
                 raise ValueError("Target player ID must be provided for targetable moves.")
@@ -249,12 +254,12 @@ class CoupGame:
     def get_current_player(self) -> Player:
         """Retrieve the current player whose turn it is."""
         players = list(self.players.values())
-        if not 0 <= self.current_player_index < len(players):
+        if not 0 <= self.currentTurnIndex < len(players):
             raise IndexError(
-                f"current_player_index {self.current_player_index} "
+                f"current_player_index {self.currentTurnIndex} "
                 f"out of range for {len(players)} players"
             )
-        return players[self.current_player_index]
+        return players[self.currentTurnIndex]
 
     def get_challenge_loser(self, challenger_id: Optional[UUID] = None) -> UUID | None:
         """
@@ -303,21 +308,21 @@ class CoupGame:
         """
         Advance to the next player's turn and reset the game and players state.
         """
-        if any(len(player.cards) == 0 for player in self.players):
+        if any([len(player.cards) == 0 for player in self.players.values()]):
             raise SynchronizationError("Cannot proceed to next turn: a player has no cards left.")
 
         if len(self.players) == 1:
             self.state = GameState.GAME_OVER
             return
 
-        self.current_player_index = (self.current_player_index + 1) % len(self.players)
+        self.currentTurnIndex = (self.currentTurnIndex + 1) % len(self.players)
         self.state = GameState.WAITING_FOR_ACTION
         self.declared_move = None
         self.challenge_loser = None
         self.move_target_id = None
         self.challenger_id = None
         self.blocker_id = None
-        for player in self.players:
+        for player in self.players.values():
             player.is_lying = False
 
     def perform_action(self) -> None:
@@ -332,4 +337,4 @@ class CoupGame:
         if action_handler is None:
             raise ValueError("No handler found for the declared move.")
 
-            action_handler.execute(self)
+        action_handler.execute(self)

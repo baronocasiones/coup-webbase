@@ -1,6 +1,6 @@
 import styles from '../styles/Landing.module.css'
 import PrimaryButton from '../components/PrimaryButton'
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from '../axios'
 import { useMutation } from '@tanstack/react-query'
@@ -17,6 +17,10 @@ function Landing() {
             navigate('/lobby', { state: { userId: response.data.id } })
         }
     })
+
+    useEffect(() => {
+        sessionStorage.clear()
+    }, [])
 
 
 

@@ -189,10 +189,21 @@
     border-radius: 16px;
     border: 1px solid rgba(255,215,0,0.15);
     position: absolute;
-    top: 25%;
-    left: 25%;
     z-index: 1000;
+    left: 25%;
+    animation: 1s showMovePreview ease-out forwards;
+    width: fit-content;
+    height: fit-content;
     visibility: hidden;
+}
+
+@keyframes showMovePreview{
+    0% {
+        bottom: 0px;
+    }
+    100% {
+        bottom: 35%;
+    }
 }
 
 .movePreviewBadge {
@@ -360,6 +371,7 @@
     flex-direction: column;
     gap: 10px;
     flex: 1;
+    margin-left: 3rem
 }
 
 .movesLabel {

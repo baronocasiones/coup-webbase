@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getGame, getUserPlayer } from '../services/game.js'
 import Loader from '../components/Loader.jsx'
+import { handleMove } from '../utils/gameActions.js'
 
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
@@ -28,6 +29,7 @@ function PlayRoom() {
             console.error(error)
         }
     })
+    const currentTurn = gameState?.currentTurn
 
     useEffect(() => {
         const previous = document.body.style.backgroundColor
@@ -45,7 +47,7 @@ function PlayRoom() {
 
         gameWs.current.onmessage = (event) => {
             const data = JSON.parse(event.data)
-            queryClient.setQueryData(['gameState'], data)
+            queryClient.invalidateQueries({ queryKey: ['gameState'] })
             console.log('Received message:', data)
         }
 
@@ -73,7 +75,7 @@ function PlayRoom() {
             <div className={styles.header}>
                 <div className={styles.currentTurnContainer}>
                     <label className={styles.turnLabel}>Current Turn</label>
-                    <span className={styles.turnName}>Alexandra's Turn</span>
+                    <span className={styles.turnName}>{currentTurn.id === userId ? "It's your" : `${currentTurn.name}'s`} Turn</span>
                 </div>
                 <div className={styles.statsContainer}>
                     <div className={styles.statItem}>
@@ -145,21 +147,17 @@ function PlayRoom() {
                 </div>
 
                 <div className={styles.userCardsContainer}>
-                    <span className={styles.userCard}>
-                        <span className={styles.userCardIcon}>🃏</span>
-                        <h4 className={styles.userCardName}>{userPlayer.cards[0]}</h4>
-                        <label className={styles.userCardAbility}>Take 3 coins</label>
-                    </span>
-                    <span className={styles.userCard}>
-                        <span className={styles.userCardIcon}>🃏</span>
-                        <h4 className={styles.userCardName}>{userPlayer.cards[1]}</h4>
-                        <label className={styles.userCardAbility}>Pay 3 to eliminate</label>
-                    </span>
+                    {userPlayer.cards.map((card, index) => (
+                        <span key={index} className={styles.userCard}>
+                            <span className={styles.userCardIcon}>🃏</span>
+                            <h4 className={styles.userCardName}>{card}</h4>
+                        </span>
+                    ))}
 
                     <div className={styles.userMoves}>
                         <p className={styles.movesLabel}>Your Actions</p>
                         <div className={styles.movesRow}>
-                            <PrimaryButton text='Income' backgroundColor='rgba(255,255,255,0.07)' width='auto' />
+                            <PrimaryButton text='Income' backgroundColor='rgba(255,255,255,0.07)' width='auto' onClick={currentTurn.id === userId ? () => handleMove(gameWs.current, 'income') : undefined} />
                             <PrimaryButton text='Foreign Aid' backgroundColor='rgba(255,255,255,0.07)' width='auto' />
                             <PrimaryButton text='Coup (7)' width='auto' />
                         </div>
@@ -172,6 +170,7 @@ function PlayRoom() {
                     </div>
                 </div>
             </div>
+
             {/* Move preview */}
             <div className={styles.movePreview}>
                 <div className={styles.movePreviewBadge}>Action</div>

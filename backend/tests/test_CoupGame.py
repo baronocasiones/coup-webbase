@@ -80,7 +80,7 @@ def test_get_player_by_id_not_found(game, player):
 
 def test_declare_move_wrong_turn(game: CoupGame, player, player2):
     game.players = [player, player2]
-    game.current_player_index = 0
+    game.currentTurnIndex = 0
     game.state = GameState.WAITING_FOR_ACTION
     with pytest.raises(SynchronizationError):
         game.declare_move(player2.id, GameAction.INCOME, None, None)

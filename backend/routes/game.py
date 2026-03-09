@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
 from controllers.GameController import game_controller
 from models.GameStateModel import GameStateModel
@@ -39,13 +39,17 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
     try:
         while True:
             data = await websocket.receive_json()
+            print('DATA: ', data)
             action = data.get("action")
             payload = data.get("payload", {})
 
             if action == "declare_move":
-                move = payload.get("move")
-                GameAction(move)  # Validate move
-                # Handle declare move logic here
+                payload_move: str = payload.get("move")
+                try:
+                    move = GameAction(payload_move.upper())  # Validate move
+                except ValueError:
+                    HTTPException(status_code=400, detail=f"Invalid move: {payload_move}")
+                game_controller.declare_move(user_id, move)
 
             elif action == "block":
                 pass
@@ -63,4 +67,6 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
         game_controller.game_manager.disconnect(user_id)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"WebSocket error: {e}")
