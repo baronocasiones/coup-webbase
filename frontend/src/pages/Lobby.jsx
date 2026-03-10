@@ -131,7 +131,6 @@ function Lobby() {
         }
 
         gameWs.current.onerror = (error) => {
-            console.error("WebSocket error:", error)
             navigate('/')
         }
 

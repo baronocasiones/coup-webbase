@@ -110,6 +110,13 @@
     border-color: rgba(102,126,234,0.5);
 }
 
+.choosingTarget{
+    position: absolute;
+    z-index: 500;
+    top: 25%;
+    left: 25%;
+}
+
 .avatarWrapper {
     position: relative;
     display: inline-block;

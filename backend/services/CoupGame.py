@@ -206,7 +206,7 @@ class CoupGame:
         if isinstance(move, BlockMove) and current_player.id == player_id:
             raise SynchronizationError("Current player cannot block their own move.")
         if self.state != GameState.WAITING_FOR_ACTION:
-            raise SynchronizationError("Game is not in a state to accept moves.")
+            raise SynchronizationError("Game is not in a state to accept moves. current state: ", self.state)
 
         if isinstance(move, BlockMove) and self.declared_move is not None and not self.declared_move.is_blockable():
             raise ValueError("This move cannot be blocked.")
@@ -216,6 +216,7 @@ class CoupGame:
             self.declared_move = move
             self.perform_action()
             self.next_turn()
+            return
 
         if isinstance(move, GameAction) and move.is_targetable():
             if target_id is None:

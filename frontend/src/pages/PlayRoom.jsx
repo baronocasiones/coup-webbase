@@ -1,24 +1,29 @@
 import styles from './../styles/PlayRoom.module.css'
 import PrimaryButton from './../components/PrimaryButton.jsx'
 import ChatBox from './../components/ChatBox.jsx'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getGame, getUserPlayer } from '../services/game.js'
 import Loader from '../components/Loader.jsx'
 import { handleMove } from '../utils/gameActions.js'
+import Opponents from '../components/Opponents.jsx'
 
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
     const navigate = useNavigate()
     const gameWs = useRef(null)
     const queryClient = useQueryClient()
+    const [isChoosingTarget, setIsChoosingTarget] = useState(false)
     const { data: gameState, isLoading: gameStateIsLoading } = useQuery({
         queryKey: ['gameState'],
         queryFn: getGame,
         onError: (error) => {
-            console.error("Error on initial fetching the inital game state: ", error)
+            console.log(error)
             navigate('/lobby')
+            if(error.response.state === 404){
+                navigate('/')
+            }
         }
     })
     const players = gameState?.playersState
@@ -26,10 +31,27 @@ function PlayRoom() {
         queryKey: ['gameState', userId],
         queryFn: () => getUserPlayer(userId),
         onError: (error) => {
-            console.error(error)
+            if(error.response.status === 404){
+                navigate('/')
+            }
         }
     })
     const currentTurn = gameState?.currentTurn
+    const isMyTurn = useMemo(() => currentTurn?.id === userId, [currentTurn, userId])
+    const handleAction = useCallback((action) => {
+        queryClient.setQueryData(['gameState', userId], (oldData) => {
+            if (action === 'income') {
+                return {
+                    ...oldData,
+                    coins: oldData.coins + 1 
+                }
+            }
+        })
+        if (['coup', 'assassinate', 'steal'].includes(action)){
+            setIsChoosingTarget
+        }
+        handleMove(gameWs.current, action)
+    })
 
     useEffect(() => {
         const previous = document.body.style.backgroundColor
@@ -39,6 +61,14 @@ function PlayRoom() {
             document.body.style.backgroundColor = previous
         }
     }, [])
+
+    useEffect(() => {
+        if (!gameStateIsLoading){
+            if (!gameState){
+                navigate('/')
+            }
+        }
+    }, [gameState, gameStateIsLoading])
 
     useEffect(() => {
         const wsHost = import.meta.env.WS_HOST || 'localhost';
@@ -99,29 +129,7 @@ function PlayRoom() {
             {/* Main content */}
             <div className={styles.mainContainer}>
                 <div className={styles.gameContainer}>
-
-                    {/* Opponents */}
-                    <div className={styles.playersContainer}>
-                        {players.map(player => player.id != userId && (
-                            <div key={player.id} className={styles.player}>
-                                <div className={styles.avatarWrapper}>
-                                    <span className={styles.profilePic}></span>
-                                    <span className={styles.onlineIndicator}></span>
-                                </div>
-                                <span className={styles.playerName}>{player.name}</span>
-                                <div className={styles.coins}>
-                                    <span className={styles.coinIcon}></span>
-                                    <span className={styles.coinValue}>{player.coins}</span>
-                                </div>
-                                <div className={styles.cardsContainer}>
-                                    {Array.from({ length: player.numberOfCards }, (_, i) => (
-                                        <span key={i} className={styles.card}></span>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
+                    <Opponents opponents={players} isChoosing={isChoosingTarget} userId={userId}/>
                 </div>
 
                 <ChatBox header="Game Log" withSubmission={false} />
@@ -157,15 +165,15 @@ function PlayRoom() {
                     <div className={styles.userMoves}>
                         <p className={styles.movesLabel}>Your Actions</p>
                         <div className={styles.movesRow}>
-                            <PrimaryButton text='Income' backgroundColor='rgba(255,255,255,0.07)' width='auto' onClick={currentTurn.id === userId ? () => handleMove(gameWs.current, 'income') : undefined} />
-                            <PrimaryButton text='Foreign Aid' backgroundColor='rgba(255,255,255,0.07)' width='auto' />
-                            <PrimaryButton text='Coup (7)' width='auto' />
+                            <PrimaryButton text='Income' backgroundColor='rgba(255,255,255,0.07)' width='auto' onClick={isMyTurn ? () => handleAction('income') : undefined} />
+                            <PrimaryButton text='Foreign Aid' backgroundColor='rgba(255,255,255,0.07)' width='auto' onClick={isMyTurn ? () => handleAction('foreign aid') : undefined} />
+                            <PrimaryButton text='Coup (7)' width='auto' onClick={isMyTurn ? () => handleAction('coup') : undefined} />
                         </div>
                         <div className={styles.movesRow}>
-                            <PrimaryButton text='Tax — Duke' backgroundColor='rgba(102,126,234,0.25)' width='auto' />
-                            <PrimaryButton text='Assassinate' backgroundColor='rgba(233,69,96,0.2)' width='auto' />
-                            <PrimaryButton text='Steal — Captain' backgroundColor='rgba(102,126,234,0.25)' width='auto' />
-                            <PrimaryButton text='Exchange — Ambassador' backgroundColor='rgba(102,126,234,0.25)' width='auto' />
+                            <PrimaryButton text='Tax — Duke' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('tax') : undefined} />
+                            <PrimaryButton text='Assassinate' backgroundColor='rgba(233,69,96,0.2)' width='auto' onClick={isMyTurn ? () => handleAction('assassinate') : undefined} />
+                            <PrimaryButton text='Steal — Captain' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('steal') : undefined} />
+                            <PrimaryButton text='Exchange — Ambassador' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('exchange') : undefined}/>
                         </div>
                     </div>
                 </div>

@@ -11,12 +11,19 @@ router = APIRouter()
 
 @router.get("/game-state", response_model=GameStateModel)
 def get_game_state():
-    return game_controller.get_game_states()
+    try:
+        return game_controller.get_game_states()
+    except AttributeError:
+        raise HTTPException(status_code=404, detail="Game not found")
 
 
 @router.get('/user-player', response_model=UserPlayerModel)
 def get_user_player(user_id: UUID):
-    player = game_controller.get_player_by_id(user_id)
+    try:
+        player = game_controller.get_player_by_id(user_id)
+    except AttributeError:
+        raise HTTPException(status_code=404, detail="Player not found")
+
     return UserPlayerModel(
         name=player.name,
         id=player.id,
@@ -27,7 +34,11 @@ def get_user_player(user_id: UUID):
 
 @router.websocket("/ws/game")
 async def game_websocket(websocket: WebSocket, user_id: UUID):
-    player = game_controller.get_player_by_id(user_id)
+    try:
+        player = game_controller.get_player_by_id(user_id)
+    except AttributeError:
+        await websocket.close(code=1008, reason="Game not found")
+        return
     player_name = player.name if player else None
     if player_name is None:
         await websocket.close(code=1008, reason="Invalid player ID")
