@@ -9,6 +9,7 @@ import Loader from '../components/Loader.jsx'
 import { handleMove } from '../utils/gameActions.js'
 import Opponents from '../components/Opponents.jsx'
 
+const TARGETED_MOVES = ['coup', 'assassinate', 'steal']
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
     const navigate = useNavigate()
@@ -40,18 +41,19 @@ function PlayRoom() {
     const isMyTurn = useMemo(() => currentTurn?.id === userId, [currentTurn, userId])
     const handleAction = useCallback((action) => {
         queryClient.setQueryData(['gameState', userId], (oldData) => {
+            const INCOME_AMOUNT = 1
             if (action === 'income') {
                 return {
                     ...oldData,
-                    coins: oldData.coins + 1 
+                    coins: oldData.coins + INCOME_AMOUNT 
                 }
             }
         })
-        if (['coup', 'assassinate', 'steal'].includes(action)){
-            setIsChoosingTarget
+        if (TARGETED_MOVES.includes(action)){
+            setIsChoosingTarget(true)
         }
         handleMove(gameWs.current, action)
-    })
+    }, [userId, gameWs, handleMove, setIsChoosingTarget])
 
     useEffect(() => {
         const previous = document.body.style.backgroundColor
@@ -81,8 +83,8 @@ function PlayRoom() {
             console.log('Received message:', data)
         }
 
-        gameWs.current.onerror = (error) => {
-            console.error('WebSocket error:', error)
+        gameWs.current.onerror = () => {
+            gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`)
         }
 
         return () => {
