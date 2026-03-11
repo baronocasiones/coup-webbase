@@ -1,11 +1,11 @@
 import styles from './../styles/PlayRoom.module.css'
 
 
-function Opponents({ opponents, isChoosing, userId}) {
+function Opponents({ opponents, userId}) {
     return (
         <div className={styles.playersContainer}>
             {opponents.map(player => player.id != userId && (
-                <div key={player.id} className={`${styles.player} ${isChoosing ? styles.choosingTarget : ''}`}>
+                <div key={player.id} className={styles.player}>
                     <div className={styles.avatarWrapper}>
                         <span className={styles.profilePic}></span>
                         <span className={styles.onlineIndicator}></span>

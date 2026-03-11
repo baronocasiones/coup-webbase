@@ -8,6 +8,7 @@ import { getGame, getUserPlayer } from '../services/game.js'
 import Loader from '../components/Loader.jsx'
 import { handleMove } from '../utils/gameActions.js'
 import Opponents from '../components/Opponents.jsx'
+import Modal from '../components/Modal.jsx'
 
 const TARGETED_MOVES = ['coup', 'assassinate', 'steal']
 function PlayRoom() {
@@ -51,6 +52,7 @@ function PlayRoom() {
         })
         if (TARGETED_MOVES.includes(action)){
             setIsChoosingTarget(true)
+            return
         }
         handleMove(gameWs.current, action)
     }, [userId, gameWs, handleMove, setIsChoosingTarget])
@@ -63,6 +65,10 @@ function PlayRoom() {
             document.body.style.backgroundColor = previous
         }
     }, [])
+
+    useEffect(() => {
+        console.log(isChoosingTarget)
+    }, [isChoosingTarget])
 
     useEffect(() => {
         if (!gameStateIsLoading){
@@ -131,7 +137,7 @@ function PlayRoom() {
             {/* Main content */}
             <div className={styles.mainContainer}>
                 <div className={styles.gameContainer}>
-                    <Opponents opponents={players} isChoosing={isChoosingTarget} userId={userId}/>
+                    <Opponents opponents={players} userId={userId}/>
                 </div>
 
                 <ChatBox header="Game Log" withSubmission={false} />
@@ -182,17 +188,9 @@ function PlayRoom() {
             </div>
 
             {/* Move preview */}
-            <div className={styles.movePreview}>
-                <div className={styles.movePreviewBadge}>Action</div>
-                <h3 className={styles.movePreviewTitle}>Marcus claims to be the Duke</h3>
-                <p className={styles.movePreviewDesc}>
-                    Marcus is taking 3 coins from the treasury. You can challenge this claim or let it pass.
-                </p>
-                <div className={styles.challengeButton}>
-                    <PrimaryButton text='⚔️ Challenge' width='auto' />
-                    <PrimaryButton text='Pass' backgroundColor='rgba(255, 255, 255, 0.08)' width='auto' />
-                </div>
-            </div>
+            <Modal status="Targeting" style={{ visibility: isChoosingTarget ? 'visible' : 'hidden'}}>
+                <Opponents opponents={players} userId={userId}/>
+            </Modal>
         </>
     )
 }

@@ -110,13 +110,6 @@
     border-color: rgba(102,126,234,0.5);
 }
 
-.choosingTarget{
-    position: absolute;
-    z-index: 500;
-    top: 25%;
-    left: 25%;
-}
-
 .avatarWrapper {
     position: relative;
     display: inline-block;
@@ -201,7 +194,6 @@
     animation: 1s showMovePreview ease-out forwards;
     width: fit-content;
     height: fit-content;
-    visibility: hidden;
 }
 
 @keyframes showMovePreview{
