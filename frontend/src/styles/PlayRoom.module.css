@@ -35,10 +35,11 @@
     display: flex;
     align-items: center;
     column-gap: 24px;
-    background: rgba(255,255,255,0.04);
-    padding: 10px 24px;
+    background: rgba(255,255,255,0.05);
+    padding: 12px 24px;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .statItem {
@@ -70,10 +71,11 @@
 /* ── Layout ──────────────────────────────────────────────── */
 .mainContainer {
     display: flex;
-    padding: 24px 40px;
+    padding: 100px 40px 24px;
     gap: 24px;
     box-sizing: border-box;
     width: 100vw;
+    margin-bottom: 200px;
 }
 
 .gameContainer {
@@ -88,10 +90,11 @@
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
-    padding: 16px;
-    background: rgba(255,255,255,0.03);
+    padding: 20px;
+    background: rgba(255,255,255,0.04);
     border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: background 0.2s;
 }
 
 .player {
@@ -103,11 +106,14 @@
     background: rgba(255,255,255,0.04);
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.08);
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background-color 0.2s, transform 0.2s;
+    cursor: pointer;
 }
 
 .player:hover {
-    border-color: rgba(102,126,234,0.5);
+    border-color: rgba(233, 69, 96, 0.4);
+    background: rgba(255,255,255,0.07);
+    transform: translateY(-2px);
 }
 
 .avatarWrapper {
@@ -185,15 +191,16 @@
     flex-direction: column;
     gap: 12px;
     padding: 20px 24px;
-    background: rgb(15,20,25);
+    background: linear-gradient(135deg, rgba(15, 20, 25, 0.98), rgba(15, 20, 25, 0.95));
     border-radius: 16px;
-    border: 1px solid rgba(255,215,0,0.15);
+    border: 1px solid rgba(233, 69, 96, 0.2);
     position: absolute;
     z-index: 1000;
     left: 25%;
     animation: 1s showMovePreview ease-out forwards;
     width: fit-content;
     height: fit-content;
+    box-shadow: 0 8px 32px rgba(233, 69, 96, 0.2);
 }
 
 @keyframes showMovePreview{
@@ -211,8 +218,8 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #FFD700;
-    background: rgba(255,215,0,0.12);
+    color: #E94560;
+    background: rgba(233, 69, 96, 0.15);
     border-radius: 20px;
     padding: 3px 10px;
     width: fit-content;
@@ -251,6 +258,7 @@
     position: absolute;
     bottom: 0;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .userInfo {
@@ -334,17 +342,23 @@
     width: 130px;
     height: 100px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #667EEA, #4f63d2);
-    border: 1px solid rgba(255,255,255,0.15);
-    box-shadow: 0 4px 16px rgba(102,126,234,0.3);
+    background: linear-gradient(135deg, #E94560, #c73652);
+    border: 1px solid rgba(233, 69, 96, 0.3);
+    box-shadow: 0 4px 16px rgba(233, 69, 96, 0.25);
     padding: 8px;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
 .userCard:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(102,126,234,0.45);
+    transform: translateY(-6px);
+    box-shadow: 0 8px 24px rgba(233, 69, 96, 0.4);
+    background: linear-gradient(135deg, #F85578, #D84563);
+}
+
+.userCard:focus {
+    outline: 2px solid rgba(233, 69, 96, 0.5);
+    outline-offset: 2px;
 }
 
 .userCardIcon {
@@ -370,7 +384,7 @@
     flex-direction: column;
     gap: 10px;
     flex: 1;
-    margin-left: 3rem
+    margin-left: 3rem;
 }
 
 .movesLabel {

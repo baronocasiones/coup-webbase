@@ -89,6 +89,9 @@ function ChatBox({ header, withSubmission = true }) {
             {withSubmission && (
                 <form className={styles.chatInputContainer} onSubmit={(e) => {
                     e.preventDefault()
+                    if (!inputRef.current.value){
+                        return
+                    }
                     const message = inputRef.current.value
                     const userId = sessionStorage.getItem('userId')
                     const username = sessionStorage.getItem('username')
@@ -99,7 +102,7 @@ function ChatBox({ header, withSubmission = true }) {
                     sendChatMutation({ userId, username, message, chatWs: chatWs.current })
                     inputRef.current.value = ''
                 }}>
-                    <input ref={inputRef} className={styles.chatInput} type="text" placeholder="Type a message..." />
+                    <input ref={inputRef} className={styles.chatInput} type="text" placeholder="Type a message..." style={{width:'auto'}}/>
                     <PrimaryButton text='Send' />
                 </form>
             )}

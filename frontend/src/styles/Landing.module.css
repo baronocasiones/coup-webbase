@@ -6,16 +6,26 @@
     color: white;
     border: 0px;
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 1rem;
 }
 
 .primaryButton:hover {
-    box-shadow: 0 4px 12px rgpa(0, 53, 186, 0.15);
+    box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3);
     transform: translateY(-2px) scale(1.03);
-    transition:
-        backround 0.2s,
-        box-shadow 0.2s,
-        transform 0.2s;
+}
+
+.primaryButton:focus {
+    outline: 2px solid rgba(233, 69, 96, 0.5);
+    outline-offset: 2px;
+}
+
+.primaryButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
  
 
@@ -66,9 +76,16 @@ input[type="text"] {
     border-radius: 6px;
     color: #ffffff;
     margin-bottom: 18px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-size: 1rem;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: #E94560;
+    box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.15);
 }
 
 input::placeholder {
     color: #718096;
 }
-

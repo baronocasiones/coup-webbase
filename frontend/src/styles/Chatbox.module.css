@@ -30,14 +30,24 @@
 }
 
 .chatInput{
-    flex-basis: 500% !important;
-    margin-bottom: 0px !important;
-    border: 0px !important;
-    placeholder-color: #FFFFFF;
+    flex: 1;
+    padding: 12px;
+    background: #0f1624;
+    border: 1px solid #2d3748;
+    border-radius: 6px;
+    color: #ffffff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-size: 0.95rem;
 }
 
-.chatInput::placeholder{
-    color: #FFFFFF !important;
+.chatInput:focus {
+    outline: none;
+    border-color: #E94560;
+    box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.15);
+}
+
+.chatInput::placeholder {
+    color: #718096;
 }
 
 .skeletonText {

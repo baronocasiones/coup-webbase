@@ -6,11 +6,13 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getGame, getUserPlayer } from '../services/game.js'
 import Loader from '../components/Loader.jsx'
-import { handleMove } from '../utils/gameActions.js'
+import { broadcastMove } from '../utils/gameActions.js'
 import Opponents from '../components/Opponents.jsx'
 import Modal from '../components/Modal.jsx'
 
+
 const TARGETED_MOVES = ['coup', 'assassinate', 'steal']
+
 function PlayRoom() {
     const userId = sessionStorage.getItem('userId')
     const navigate = useNavigate()
@@ -23,7 +25,7 @@ function PlayRoom() {
         onError: (error) => {
             console.log(error)
             navigate('/lobby')
-            if(error.response.state === 404){
+            if (error.response.state === 404) {
                 navigate('/')
             }
         }
@@ -33,7 +35,7 @@ function PlayRoom() {
         queryKey: ['gameState', userId],
         queryFn: () => getUserPlayer(userId),
         onError: (error) => {
-            if(error.response.status === 404){
+            if (error.response.status === 404) {
                 navigate('/')
             }
         }
@@ -41,21 +43,21 @@ function PlayRoom() {
     const currentTurn = gameState?.currentTurn
     const isMyTurn = useMemo(() => currentTurn?.id === userId, [currentTurn, userId])
     const handleAction = useCallback((action) => {
+        const INCOME_AMOUNT = 1
         queryClient.setQueryData(['gameState', userId], (oldData) => {
-            const INCOME_AMOUNT = 1
             if (action === 'income') {
                 return {
                     ...oldData,
-                    coins: oldData.coins + INCOME_AMOUNT 
+                    coins: oldData.coins + INCOME_AMOUNT
                 }
             }
         })
-        if (TARGETED_MOVES.includes(action)){
+        if (TARGETED_MOVES.includes(action)) {
             setIsChoosingTarget(true)
             return
         }
-        handleMove(gameWs.current, action)
-    }, [userId, gameWs, handleMove, setIsChoosingTarget])
+        broadcastMove(gameWs.current, action)
+    }, [userId, gameWs, broadcastMove, setIsChoosingTarget])
 
     useEffect(() => {
         const previous = document.body.style.backgroundColor
@@ -71,8 +73,8 @@ function PlayRoom() {
     }, [isChoosingTarget])
 
     useEffect(() => {
-        if (!gameStateIsLoading){
-            if (!gameState){
+        if (!gameStateIsLoading) {
+            if (!gameState) {
                 navigate('/')
             }
         }
@@ -137,7 +139,7 @@ function PlayRoom() {
             {/* Main content */}
             <div className={styles.mainContainer}>
                 <div className={styles.gameContainer}>
-                    <Opponents opponents={players} userId={userId}/>
+                    <Opponents opponents={players} userId={userId} />
                 </div>
 
                 <ChatBox header="Game Log" withSubmission={false} />
@@ -181,15 +183,15 @@ function PlayRoom() {
                             <PrimaryButton text='Tax — Duke' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('tax') : undefined} />
                             <PrimaryButton text='Assassinate' backgroundColor='rgba(233,69,96,0.2)' width='auto' onClick={isMyTurn ? () => handleAction('assassinate') : undefined} />
                             <PrimaryButton text='Steal — Captain' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('steal') : undefined} />
-                            <PrimaryButton text='Exchange — Ambassador' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('exchange') : undefined}/>
+                            <PrimaryButton text='Exchange — Ambassador' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('exchange') : undefined} />
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Move preview */}
-            <Modal status="Targeting" style={{ visibility: isChoosingTarget ? 'visible' : 'hidden'}}>
-                <Opponents opponents={players} userId={userId}/>
+            <Modal status="Targeting" style={{ visibility: isChoosingTarget ? 'visible' : 'hidden' }}>
+                <Opponents opponents={players} userId={userId} />
             </Modal>
         </>
     )

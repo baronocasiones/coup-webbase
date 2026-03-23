@@ -1,4 +1,4 @@
-export const handleMove = (websocket, move, target=undefined) => {
+export const broadcastMove = (websocket, move, target=undefined) => {
     if (!websocket || websocket.readyState !== WebSocket.OPEN) {
         return
     }
