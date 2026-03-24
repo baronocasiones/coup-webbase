@@ -4,6 +4,7 @@ from models.PlayerModel import PlayerModel
 from uuid import UUID 
 from utils.state import game
 from controllers.LobbyController import lobby_controller
+from utils.exceptions import PlayerNotFoundError
 
 router = APIRouter()
 
@@ -15,10 +16,11 @@ def get_players():
 
 @router.get("/player", response_model=PlayerModel)
 def get_player(user_id: UUID):
-    player = lobby_controller.get_player_by_id(user_id)
-    if player:
+    try:
+        player = lobby_controller.get_player_by_id(user_id)
         return player
-    return HTTPException(status_code=404, detail="Player not found")
+    except PlayerNotFoundError:
+        raise HTTPException(status_code=404, detail="Player not found")
 
 
 @router.post("/player", response_model=PlayerModel)

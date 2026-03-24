@@ -33,21 +33,23 @@ def player2():
 def test_add_and_remove_player(game, player):
     game.state = GameState.WAITING_FOR_PLAYERS
     game.add_player(player)
-    assert player in game.players
+    assert player.id in game.players
+    assert game.players[player.id] == player
     game.remove_player(player.id)
-    assert player not in game.players
+    assert player.id not in game.players
 
 
 def test_add_player_when_game_started(game, player):
     game.state = GameState.WAITING_FOR_ACTION
     with pytest.raises(SynchronizationError):
         game.add_player(player)
-    assert player not in game.players
+    assert player.id not in game.players
 
 
 def test_add_player_when_full(game, player):
     game.state = GameState.WAITING_FOR_PLAYERS
-    game.players = [Player(str(i)) for i in range(6)]
+    for i in range(6):
+        game.add_player(Player(str(i)))
     with pytest.raises(ValueError):
         game.add_player(player)
 
@@ -59,27 +61,30 @@ def test_start_game_insufficient_players(game, player):
 
 
 def test_start_game(game: CoupGame, player, player2):
-    game.players = [player, player2]
+    game.add_player(player)
+    game.add_player(player2)
     game.state = GameState.WAITING_FOR_PLAYERS
     game.start_game()
     assert game.state == GameState.WAITING_FOR_ACTION
 
 
 def test_deal_inital_cards(game: CoupGame, player, player2):
-    game.players = [player, player2]
+    game.add_player(player)
+    game.add_player(player2)
     game._deal_initial_cards()
     assert len(player.cards) == 2
     assert len(player2.cards) == 2
 
 
 def test_get_player_by_id_not_found(game, player):
-    game.players = [player]
-    with pytest.raises(ValueError):
-        game.get_player_by_id(uuid4())
+    game.add_player(player)
+    result = game.get_player_by_id(uuid4())
+    assert result is None
 
 
 def test_declare_move_wrong_turn(game: CoupGame, player, player2):
-    game.players = [player, player2]
+    game.add_player(player)
+    game.add_player(player2)
     game.currentTurnIndex = 0
     game.state = GameState.WAITING_FOR_ACTION
     with pytest.raises(SynchronizationError):
@@ -87,16 +92,16 @@ def test_declare_move_wrong_turn(game: CoupGame, player, player2):
 
 
 def test_declare_move_block_self(game, player):
-    game.players = [player]
-    game.current_player_index = 0
+    game.add_player(player)
+    game.currentTurnIndex = 0
     game.state = GameState.WAITING_FOR_ACTION
     with pytest.raises(SynchronizationError):
         game.declare_move(player.id, BlockMove.BLOCK_FOREIGN_AID, None, player.id)
 
 
 def test_declare_move_invalid_state(game, player):
-    game.players = [player]
-    game.current_player_index = 0
+    game.add_player(player)
+    game.currentTurnIndex = 0
     game.state = GameState.WAITING_FOR_PLAYERS
     with pytest.raises(SynchronizationError):
         game.declare_move(player.id, GameAction.INCOME, None, None)
@@ -110,14 +115,15 @@ def test_handle_no_challenge_invalid_state(game, player):
 
 
 def test_next_turn_player_with_no_cards(game, player, player2):
+    game.add_player(player)
+    game.add_player(player2)
     player.cards = []
-    game.players = [player, player2]
     with pytest.raises(SynchronizationError):
         game.next_turn()
 
 
 def test_next_turn_game_over(game: CoupGame, player):
-    game.players = [player]
+    game.add_player(player)
     game._deal_initial_cards()
     game.state = GameState.WAITING_FOR_ACTION
     game.next_turn()

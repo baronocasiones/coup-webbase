@@ -103,7 +103,7 @@ class CoupGame:
         """
         Remove a player from the game by their ID.
         """
-        self.players.pop(player_id)
+        self.players.pop(player_id, None)
 
     def update_players_state(
             self,
@@ -149,11 +149,7 @@ class CoupGame:
 
     def get_player_by_id(self, player_id: UUID) -> Player | None:
         """Retrieve a player by their ID."""
-        player = self.players.get(player_id)
-        if player is None:
-            raise ValueError("Player not found.")
-
-        return self.players[player_id]
+        return self.players.get(player_id)
 
     # start the game when there are 2 or more players in the lobby/room (min 2, max 6)
     def start_game(self) -> None:

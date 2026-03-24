@@ -26,15 +26,20 @@ class GameController:
 
     def get_game_states(self) -> dict:
         loser_id = self.game.get_challenge_loser()
-        return {
+        result = {
             "state": self.game.get_game_state(),
             "cardsInDeck": self.game.get_cards_in_deck(),
             "playersState": [PlayerModel(**vars(player)) for player in self.game.get_players()],
             "declaredMove": self.game.get_declared_move(),
             "declaredBlock": self.game.get_declared_block(),
             "challengeLoser": self.get_player_by_id(loser_id) if loser_id is not None else None,
-            "currentTurn": PlayerModel(**vars(self.game.get_current_player())),
         }
+        
+        # Only include currentTurn if there are players
+        if len(self.game.get_players()) > 0:
+            result["currentTurn"] = PlayerModel(**vars(self.game.get_current_player()))
+        
+        return result
 
     def declare_move(self, *args, **kwargs) -> None: 
         self.game.declare_move(*args, **kwargs)
