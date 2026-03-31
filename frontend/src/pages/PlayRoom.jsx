@@ -9,6 +9,7 @@ import Loader from '../components/Loader.jsx'
 import { broadcastMove } from '../utils/gameActions.js'
 import Opponents from '../components/Opponents.jsx'
 import Modal from '../components/Modal.jsx'
+import Toast from '../components/Toast.jsx' 
 
 
 const TARGETED_MOVES = ['coup', 'assassinate', 'steal']
@@ -111,6 +112,7 @@ function PlayRoom() {
 
     return (
         <>
+            <Toast message="nigger" id={1} /> 
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.currentTurnContainer}>
