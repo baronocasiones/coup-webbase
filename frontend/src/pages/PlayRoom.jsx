@@ -112,7 +112,6 @@ function PlayRoom() {
 
     return (
         <>
-            <Toast message="nigger" id={1} /> 
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.currentTurnContainer}>
@@ -183,7 +182,7 @@ function PlayRoom() {
                         </div>
                         <div className={styles.movesRow}>
                             <PrimaryButton text='Tax — Duke' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('tax') : undefined} />
-                            <PrimaryButton text='Assassinate' backgroundColor='rgba(233,69,96,0.2)' width='auto' onClick={isMyTurn ? () => handleAction('assassinate') : undefined} />
+                            <PrimaryButton text='Assassinate — Assassin' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('assassinate') : undefined} />
                             <PrimaryButton text='Steal — Captain' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('steal') : undefined} />
                             <PrimaryButton text='Exchange — Ambassador' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('exchange') : undefined} />
                         </div>
