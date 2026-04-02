@@ -44,15 +44,7 @@ function PlayRoom() {
     const currentTurn = gameState?.currentTurn
     const isMyTurn = useMemo(() => currentTurn?.id === userId, [currentTurn, userId])
     const handleAction = useCallback((action) => {
-        const INCOME_AMOUNT = 1
-        queryClient.setQueryData(['gameState', userId], (oldData) => {
-            if (action === 'income') {
-                return {
-                    ...oldData,
-                    coins: oldData.coins + INCOME_AMOUNT
-                }
-            }
-        })
+        queryClient.invalidateQueries(['gameState', userId])
         if (TARGETED_MOVES.includes(action)) {
             setIsChoosingTarget(true)
             return
@@ -148,6 +140,7 @@ function PlayRoom() {
 
             {/* User panel */}
             <div className={styles.userUIContainer}>
+                {/* Left: User Info Section */}
                 <div className={styles.userInfo}>
                     <div className={styles.userIdentifier}>
                         <div className={styles.userAvatarWrapper}>
@@ -165,14 +158,20 @@ function PlayRoom() {
                     </div>
                 </div>
 
-                <div className={styles.userCardsContainer}>
-                    {userPlayer.cards.map((card, index) => (
-                        <span key={index} className={styles.userCard}>
-                            <span className={styles.userCardIcon}>🃏</span>
-                            <h4 className={styles.userCardName}>{card}</h4>
-                        </span>
-                    ))}
+                {/* Center: Cards Section */}
+                <div className={styles.userCenterSection}>
+                    <div className={styles.userCardsContainer}>
+                        {userPlayer.cards.map((card, index) => (
+                            <span key={index} className={styles.userCard}>
+                                <span className={styles.userCardIcon}>🃏</span>
+                                <h4 className={styles.userCardName}>{card}</h4>
+                            </span>
+                        ))}
+                    </div>
+                </div>
 
+                {/* Right: Actions Section */}
+                <div className={styles.userRightSection}>
                     <div className={styles.userMoves}>
                         <p className={styles.movesLabel}>Your Actions</p>
                         <div className={styles.movesRow}>
@@ -181,10 +180,10 @@ function PlayRoom() {
                             <PrimaryButton text='Coup (7)' width='auto' onClick={isMyTurn ? () => handleAction('coup') : undefined} />
                         </div>
                         <div className={styles.movesRow}>
-                            <PrimaryButton text='Tax — Duke' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('tax') : undefined} />
-                            <PrimaryButton text='Assassinate — Assassin' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('assassinate') : undefined} />
-                            <PrimaryButton text='Steal — Captain' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('steal') : undefined} />
-                            <PrimaryButton text='Exchange — Ambassador' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('exchange') : undefined} />
+                            <PrimaryButton text='Tax' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('tax') : undefined} />
+                            <PrimaryButton text='Assassinate' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('assassinate') : undefined} />
+                            <PrimaryButton text='Steal' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('steal') : undefined} />
+                            <PrimaryButton text='Exchange' backgroundColor='rgba(102,126,234,0.25)' width='auto' onClick={isMyTurn ? () => handleAction('exchange') : undefined} />
                         </div>
                     </div>
                 </div>
