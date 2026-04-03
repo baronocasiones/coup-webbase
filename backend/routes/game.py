@@ -1,0 +1,89 @@
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from uuid import UUID
+from controllers.GameController import game_controller
+from models.GameStateModel import GameStateModel
+from models.UserPlayerModel import UserPlayerModel
+
+from services.GameAction import GameAction
+
+router = APIRouter()
+
+
+@router.get("/game-state", response_model=GameStateModel)
+def get_game_state():
+    try:
+        return game_controller.get_game_states()
+    except AttributeError:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+
+@router.get('/user-player', response_model=UserPlayerModel)
+def get_user_player(user_id: UUID):
+    try:
+        player = game_controller.get_player_by_id(user_id)
+    except AttributeError:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    return UserPlayerModel(
+        name=player.name,
+        id=player.id,
+        coins=player.coins,
+        cards=[card.name for card in player.cards],
+    )
+
+
+@router.websocket("/ws/game")
+async def game_websocket(websocket: WebSocket, user_id: UUID):
+    try:
+        player = game_controller.get_player_by_id(user_id)
+    except AttributeError:
+        await websocket.close(code=1008, reason="Game not found")
+        return
+    player_name = player.name if player else None
+    if player_name is None:
+        await websocket.close(code=1008, reason="Invalid player ID")
+        return
+
+    initial_state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+    await game_controller.game_manager.connect(websocket, user_id, game_state=initial_state)
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            print('DATA: ', data)
+            action = data.get("action")
+            payload = data.get("payload", {})
+
+            if action == "declare_move":
+                payload_move: str = payload.get("move")
+                target: str = payload.get("target")
+                try:
+                    move = GameAction(payload_move.upper())  # Validate move
+                    game_controller.declare_move(
+                            player_id=user_id,
+                            move=move,
+                            target_id=UUID(target) if target else None,
+                            blocker_id=UUID(payload.get("blockerId")) if payload.get("blockerId") else None
+                    )
+                except ValueError:
+                    HTTPException(status_code=400, detail=f"Invalid move: {payload_move}")
+
+            elif action == "block":
+                pass
+
+            elif action == "exchange_selection":
+                pass
+
+            elif action == "challenge":
+                pass
+
+            else:
+                print(f"Unknown action: {action}")
+
+    except WebSocketDisconnect:
+        game_controller.game_manager.disconnect(user_id)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"WebSocket error: {e}")

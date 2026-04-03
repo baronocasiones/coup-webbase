@@ -1,0 +1,9 @@
+refactor: migrate Loader to CSS modules and add Toast component
+
+- Convert Loader from styled-components to CSS modules for better performance
+- Create new Toast notification component with auto-dismiss and animations
+- Add Toast.module.css with dark mode support and 4 variants (success, error, warning, info)
+- Enhance global styles with smooth scrolling and improved typography
+- Update Chatbox, Landing, Lobby, and PlayRoom styles with refined animations
+- Improve visual hierarchy and spacing across UI components
+- Add GPU-accelerated animations and backdrop filters for modern feel

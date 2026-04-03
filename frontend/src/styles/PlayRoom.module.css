@@ -1,163 +1,554 @@
+/* ── Header ──────────────────────────────────────────────── */
 .header {
     display: flex;
-    column-gap: 30%;
-    padding: 0px 40px;
+    align-items: center;
     justify-content: space-between;
+    padding: 18px 40px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+    border-bottom: 2px solid rgba(233, 69, 96, 0.25);
     width: 100vw;
-    position: relative;
-    top: 10px;
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    z-index: -1;
+    backdrop-filter: blur(10px);
+}
+
+.header h2 {
+    margin: 0;
+}
+
+.turnLabel {
+    font-size: 0.75rem;
+    color: #A8B2D1;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.turnName {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #E94560;
 }
 
 .currentTurnContainer {
     display: flex;
     flex-direction: column;
-    white-space: nowrap;
+    gap: 4px;
 }
 
 .statsContainer {
     display: flex;
-    column-gap: 32px;
-    white-space: nowrap;
+    align-items: center;
+    column-gap: 24px;
+    background: rgba(255,255,255,0.05);
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+    position: absolute;
+    left: 35%;
+    backdrop-filter: blur(10px);
+}
+
+.statsContainer:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(233, 69, 96, 0.2);
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
 }
 
 .statLabels {
+    font-size: 0.7rem;
     color: #A8B2D1;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
 }
 
-.mainContainer{
+.statValue {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.statDivider {
+    width: 1px;
+    height: 32px;
+    background: rgba(255,255,255,0.1);
+}
+
+/* ── Layout ──────────────────────────────────────────────── */
+.mainContainer {
     display: flex;
-    padding: 24px 40px 24px;
+    padding: 100px 40px 300px;
+    gap: 32px;
+    box-sizing: border-box;
     width: 100vw;
 }
 
-.gameContainer{
+.gameContainer {
     display: flex;
     flex-direction: column;
+    gap: 16px;
+    flex: 1;
 }
 
-.profilePic{
-    width: 64px;
-    height: 64px;
-    border-radius: 100%;
-    background-color: #667EEA;
+/* ── Opponent players ────────────────────────────────────── */
+.playersContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 24px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: all 0.3s ease;
+    animation: slideIn 0.6s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.playersContainer:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.12);
+}
+
+.player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-width: 140px;
+}
+
+.player:hover {
+    border-color: rgba(233, 69, 96, 0.4);
+    background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.05));
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(233, 69, 96, 0.15);
+}
+
+.avatarWrapper {
+    position: relative;
     display: inline-block;
 }
 
-.playersContainer{
-    display: flex;
-    padding: 20px;
-    column-gap: 5rem;
-    width: auto;
+.profilePic {
+    width: 52px;
+    height: 52px;
+    border-radius: 100%;
+    background: linear-gradient(135deg, #667EEA, #764BA2);
+    display: inline-block;
+    border: 2px solid rgba(102, 126, 234, 0.3);
 }
 
-.player{
+.onlineIndicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #4caf50;
+    border: 2px solid #0F1419;
+    display: block;
+}
+
+.playerName {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #E2E8F0;
+}
+
+.coins {
     display: flex;
-    flex-direction: column;
-    row-gap: 12px;
-    padding: 16px;
     align-items: center;
+    gap: 6px;
+    background: rgba(255,215,0,0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
 }
 
-.playerName{
-    text-align: center;
-}
-
-.coinIcon{
-    width: 20px;
-    height: 20px;
+.coinIcon {
+    width: 16px;
+    height: 16px;
     border-radius: 100%;
     background-color: #FFD700;
     display: inline-block;
+    flex-shrink: 0;
 }
 
-.coinValue{
+.coinValue {
+    font-size: 0.85rem;
+    font-weight: 700;
     color: #FFD700;
 }
 
-.coins{
+.cardsContainer {
     display: flex;
-    column-gap: 8px;
-    align-items: center;
-    justify-content: center;
+    gap: 6px;
 }
 
-.cardsContainer{
-    display: flex;
-    column-gap: 8px;
-}
-
-.card{
-    width: 40px;
-    height: 56px;
+.card {
+    width: 36px;
+    height: 52px;
     display: inline-block;
-    background-color: #E94560;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #E94560, #c73652);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(233,69,96,0.3);
 }
 
+/* ── Move preview ────────────────────────────────────────── */
 .movePreview {
     display: flex;
     flex-direction: column;
-    padding: 1rem;
-    row-gap: 20px;
+    gap: 20px;
+    padding: 28px;
+    background: linear-gradient(135deg, rgba(15, 20, 25, 0.98), rgba(26, 31, 46, 0.95));
+    border-radius: 20px;
+    border: 1px solid rgba(233, 69, 96, 0.25);
+    position: fixed;
+    z-index: 1000;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease-out forwards;
+    box-shadow: 0 20px 60px rgba(233, 69, 96, 0.25);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -55%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+.movePreviewBadge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #E94560;
+    background: rgba(233, 69, 96, 0.15);
+    border-radius: 20px;
+    padding: 3px 10px;
+    width: fit-content;
+}
+
+.movePreviewTitle {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+}
+
+.movePreviewDesc {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #A8B2D1;
+    text-align: center;
+    line-height: 1.5;
 }
 
 .challengeButton {
     display: flex;
-    column-gap: 1rem;
+    gap: 12px;
     justify-content: center;
 }
 
-.userUIContainer{
+/* ── User panel ──────────────────────────────────────────── */
+.userUIContainer {
     display: flex;
     flex-direction: column;
-    padding: 0px 24px;
-    row-gap: 20px;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    gap: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.04) 100%);
+    border-top: 2px solid rgba(233, 69, 96, 0.4);
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 50;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    max-height: fit-content;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
 }
 
-.userInfo{
+.userInfo {
     display: flex;
-    gap: 55vw;
-}
-
-.userIdentifier{
-    display: flex;
-    column-gap: 1rem;
-}
-
-.userCoins{
-    display: flex;
-    background-color: rgba(255, 215, 0, 0.148);
-    padding: 12px 24px 12px;
-    border-radius: 8px;
-    column-gap: 12px;
-    justify-content: center;
     align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: auto;
+    flex-shrink: 0;
+    width: 100%;
+    padding: 18px 40px;
+    border-bottom: 1px solid rgba(233, 69, 96, 0.15);
+    background: linear-gradient(180deg, rgba(233, 69, 96, 0.08) 0%, rgba(233, 69, 96, 0.02) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.userCardsContainer{
+.userCenterSection {
     display: flex;
-    column-gap: 16px;
-    justify-content: center;
-}
-
-.userCard{
-    display: flex;
-    width: 120px;
-    height: 89px;
-    border-radius: 8px;
-    background-color: #667EEA;
-    justify-content: center;
+    flex-direction: row;
     align-items: center;
+    justify-content: center;
+    gap: 48px;
+    flex: 1;
+    flex-shrink: 0;
+    padding: 24px 40px;
+}
+
+.userRightSection {
+    display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-shrink: 0;
+    width: auto;
+}
+
+.userIdentifier {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.userAvatarWrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.youBadge {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.55rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #E94560, #FF6B7A);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 8px rgba(233, 69, 96, 0.4);
+}
+
+.userNameBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.userName {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+}
+
+.userStatus {
+    font-size: 0.7rem;
+    color: #4caf50;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.userCoins {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05));
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(255,215,0,0.25);
+    box-shadow: 0 4px 12px rgba(255,215,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.userCoinValue {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #FFD700;
+}
+
+.userCardsContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: nowrap;
+    padding: 0 16px;
+    flex-shrink: 0;
+    width: auto;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    padding-right: 32px;
+}
+
+.userCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 96px;
+    height: 80px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(233, 69, 96, 0.95), rgba(199, 54, 82, 0.95));
+    border: 2.5px solid rgba(233, 69, 96, 0.7);
+    box-shadow: 0 8px 24px rgba(233, 69, 96, 0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+    padding: 4px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    min-width: fit-content;
+}
+
+.userCard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.6s ease-in-out;
+}
+
+.userCard:hover {
+    transform: translateY(-8px) scale(1.1);
+    box-shadow: 0 16px 40px rgba(233, 69, 96, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+    background: linear-gradient(135deg, rgba(248, 85, 120, 0.98), rgba(216, 69, 99, 0.98));
+    border-color: rgba(233, 69, 96, 1);
+}
+
+.userCard:hover::before {
+    left: 100%;
+}
+
+.userCard:focus {
+    outline: 2.5px solid rgba(233, 69, 96, 0.8);
+    outline-offset: 4px;
+}
+
+.userCardIcon {
+    font-size: 1.4rem;
+}
+
+.userCardName {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    letter-spacing: -0.01em;
+}
+
+.userCardAbility {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.7);
     text-align: center;
 }
 
-.userMoves{
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 16px;
+.uiDivider {
+    width: 1px;
+    height: 48px;
+    background: linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent);
+    flex-shrink: 0;
 }
 
+.userMoves {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: auto;
+    align-items: center;
+    padding-top: 0;
+    flex-shrink: 0;
+    margin-left: 0;
+}
 
+.userMoves button {
+    padding: 11px 18px !important;
+    font-size: 0.88rem !important;
+    font-weight: 650 !important;
+    border-radius: 9px !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    white-space: nowrap;
+    letter-spacing: 0.01em !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.userMoves button:hover:not(:disabled) {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3) !important;
+}
+
+.userMoves button:focus {
+    outline: 2.5px solid rgba(233, 69, 96, 0.8) !important;
+    outline-offset: 3px !important;
+}
+
+.userMoves button:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    filter: saturate(0.6) !important;
+}
+
+.movesLabel {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(233, 69, 96, 0.8);
+    text-align: center;
+}
+
+.movesRow {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 12px;
+    justify-content: center;
+    width: 100%;
+}

@@ -1,134 +1,297 @@
-import styles from './../styles/PlayRoom.module.css'
-import PrimaryButton from './../components/PrimaryButton.jsx'
-import ChatBox from './../components/ChatBox.jsx'
-import { useEffect } from 'react'
+import styles from "./../styles/PlayRoom.module.css";
+import PrimaryButton from "./../components/PrimaryButton.jsx";
+import ChatBox from "./../components/ChatBox.jsx";
+import { useEffect, useRef, useMemo, useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getGame, getUserPlayer } from "../services/game.js";
+import Loader from "../components/Loader.jsx";
+import { broadcastMove } from "../utils/gameActions.js";
+import Opponents from "../components/Opponents.jsx";
+import Modal from "../components/Modal.jsx";
+import { useStateMachine, gameStates } from "../hooks/useStateMachine.js";
+
+const TARGETED_MOVES = ["COUP", "ASSASSINATE", "STEAL"];
 
 function PlayRoom() {
-    useEffect(() => {
-        const previous = document.body.style.backgroundColor
+    const userId = sessionStorage.getItem("userId");
+    const navigate = useNavigate();
+    const gameWs = useRef(null);
+    const queryClient = useQueryClient();
+    const [stateMachineState, dispatchGameState] = useStateMachine({
+        gameState: gameStates.waiting_for_moves,
+        payload: null,
+    });
+    const [isChoosingTarget, setIsChoosingTarget] = useState(false);
+    const { data: gameState, isLoading: gameStateIsLoading } = useQuery({
+        queryKey: ["gameState"],
+        queryFn: getGame,
+        onError: (error) => {
+            console.log(error);
+            navigate("/lobby");
+            if (error.response.state === 404) {
+                navigate("/");
+            }
+        },
+    });
+    const players = gameState?.playersState;
+    const { data: userPlayer, isLoading: userPlayerIsLoading } = useQuery({
+        queryKey: ["gameState", userId],
+        queryFn: () => getUserPlayer(userId),
+        onError: (error) => {
+            if (error.response.status === 404) {
+                navigate("/");
+            }
+        },
+    });
+    const currentTurn = gameState?.currentTurn;
+    const isMyTurn = useMemo(
+        () => currentTurn?.id === userId,
+        [currentTurn, userId],
+    );
+    const handleAction = useCallback(
+        (action) => {
+            if (TARGETED_MOVES.includes(action)) {
+                dispatchGameState({
+                    type: gameStates.choosing_target,
+                    payload: { move: action },
+                });
+                setIsChoosingTarget(true);
+                return;
+            } else {
+                dispatchGameState({
+                    type: gameStates.move_declared,
+                    payload: { move: action },
+                });
+                broadcastMove(gameWs.current, action);
+            }
+            queryClient.invalidateQueries(["gameState", userId]);
+        },
+        [userId, gameWs, broadcastMove, setIsChoosingTarget],
+    );
 
-        document.body.style.backgroundColor = '#0F1419'
+    useEffect(() => {
+        console.log(stateMachineState)
+        const target = stateMachineState?.payload?.target;
+        const move = stateMachineState?.payload?.move;
+        if (target && move) {
+            broadcastMove(gameWs.current, move, target);
+        }
+        queryClient.invalidateQueries({ queryKey: ["gameState"]})
+    }, [stateMachineState]);
+
+    useEffect(() => {
+        const previous = document.body.style.backgroundColor;
+        document.body.style.backgroundColor = "#0F1419";
 
         return () => {
-            document.body.style.backgroundColor = previous
+            document.body.style.backgroundColor = previous;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!gameStateIsLoading) {
+            if (!gameState) {
+                navigate("/");
+            }
         }
-    }, [])
+    }, [gameState, gameStateIsLoading]);
+
+    useEffect(() => {
+        const wsHost = import.meta.env.WS_HOST || "localhost";
+        const wsPort = import.meta.env.WS_PORT || "8000";
+        gameWs.current = new WebSocket(
+            `ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`,
+        );
+
+        gameWs.current.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            queryClient.invalidateQueries({ queryKey: ["gameState"] });
+            console.log("Received message:", data);
+        };
+
+        gameWs.current.onerror = () => {
+            gameWs.current = new WebSocket(
+                `ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`,
+            );
+        };
+
+        return () => {
+            if (gameWs.current) {
+                gameWs.current.close();
+            }
+        };
+    }, []);
+
+    if (gameStateIsLoading || userPlayerIsLoading) {
+        return <Loader />;
+    }
+    if (!userId) {
+        navigate("/");
+    }
 
     return (
         <>
-            <div>
-                <div className={styles.header}>
-                    <div className={styles.currentTurnContainer}>
-                        <label style={{ color: '#A8B2D1' }}>Current Turn </label>
-                        <span style={{ color: '#E94560' }}>Alexandra's Turn</span>
-                    </div>
-                    <div className={styles.statsContainer}>
-                        <div>
-                            <label className={styles.statLabels}>Round </label><br />
-                            <span>3</span>
-                        </div>
-                        <div>
-                            <label className={styles.statLabels}>Players Left </label><br />
-                            <span>4/4</span>
-                        </div>
-                        <div>
-                            <label className={styles.statLabels}>Treasury </label><br />
-                            <span>50</span>
-                        </div>
-                    </div>
-                    <PrimaryButton text='Menu' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
+            {/* Header */}
+            <div className={styles.header}>
+                <div className={styles.currentTurnContainer}>
+                    <label className={styles.turnLabel}>Current Turn</label>
+                    <span className={styles.turnName}>
+                        {currentTurn.id === userId ? "It's your" : `${currentTurn.name}'s`}{" "}
+                        Turn
+                    </span>
                 </div>
-                <div className={styles.mainContainer}>
-                    <div className={styles.gameContainer}>
-                        <div className={styles.playersContainer}>
-                            <div className={styles.player}>
-                                <span className={styles.profilePic}></span>
-                                <span className={styles.playerName}>Marcus</span>
-                                <div className={styles.coins}>
-                                    <span className={styles.coinIcon}></span>
-                                    <span className={styles.coinValue}>5</span>
-                                </div>
-                                <div className={styles.cardsContainer}>
-                                    <span className={styles.card}></span>
-                                    <span className={styles.card}></span>
-                                </div>
-                            </div>
-                            <div className={styles.player}>
-                                <span className={styles.profilePic}></span>
-                                <span className={styles.playerName}>Sophia</span>
-                                <div className={styles.coins}>
-                                    <span className={styles.coinIcon}></span>
-                                    <span className={styles.coinValue}>3</span>
-                                </div>
-                                <div className={styles.cardsContainer}>
-                                    <span className={styles.card}></span>
-                                    <span className={styles.card}></span>
-                                </div>
-                            </div>
-                            <div className={styles.player}>
-                                <span className={styles.profilePic}></span>
-                                <span className={styles.playerName}>James</span>
-                                <div className={styles.coins}>
-                                    <span className={styles.coinIcon}></span>
-                                    <span className={styles.coinValue}>7</span>
-                                </div>
-                                <div className={styles.cardsContainer}>
-                                    <span className={styles.card}></span>
-                                    <span className={styles.card}></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className={styles.movePreview}>
-                            <h3 style={{ textAlign: 'center' }}>Marcus claims to be the Duke</h3>
-                            <span style={{ textAlign: 'center', color: '#A8B2D1' }}>Marcus is taking 3 coins from the treasury. You can challenge this claim or let it pass.</span>
-                            <div className={styles.challengeButton}>
-                                <PrimaryButton text='Challenge' width='auto' />
-                                <PrimaryButton text='Pass' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            </div>
-                        </div>
+                <div className={styles.statsContainer}>
+                    <div className={styles.statItem}>
+                        <label className={styles.statLabels}>Round</label>
+                        <span className={styles.statValue}>3</span>
                     </div>
-                    <div>
-                        <ChatBox header="Game Log" withSubmission={false} />
+                    <div className={styles.statDivider} />
+                    <div className={styles.statItem}>
+                        <label className={styles.statLabels}>Players Left</label>
+                        <span className={styles.statValue}>4 / 4</span>
+                    </div>
+                    <div className={styles.statDivider} />
+                    <div className={styles.statItem}>
+                        <label className={styles.statLabels}>Treasury</label>
+                        <span className={styles.statValue}>💰 50</span>
                     </div>
                 </div>
+                <PrimaryButton
+                    text="Menu"
+                    backgroundColor="rgba(255, 255, 255, 0.08)"
+                    width="auto"
+                />
             </div>
+
+            {/* Main content */}
+            <div className={styles.mainContainer}>
+                <div className={styles.gameContainer}>
+                    <Opponents opponents={players} userId={userId} />
+                </div>
+
+                <ChatBox header="Game Log" withSubmission={false} />
+            </div>
+
+            {/* User panel */}
             <div className={styles.userUIContainer}>
+                {/* Left: User Info Section */}
                 <div className={styles.userInfo}>
                     <div className={styles.userIdentifier}>
-                        <span className={styles.profilePic} style={{ backgroundColor: '#E94560', width: '56px', height: '56px' }}></span>
-                        <h3 style={{ alignContent: 'center' }}>You (Alexandra)</h3>
+                        <div className={styles.userAvatarWrapper}>
+                            <span
+                                className={styles.profilePic}
+                                style={{
+                                    backgroundColor: "#E94560",
+                                    width: "52px",
+                                    height: "52px",
+                                }}
+                            ></span>
+                            <span className={styles.youBadge}>You</span>
+                        </div>
+                        <div className={styles.userNameBlock}>
+                            <h3 className={styles.userName}>{userPlayer.name}</h3>
+                            <span className={styles.userStatus}>● Active</span>
+                        </div>
                     </div>
                     <div className={styles.userCoins}>
-                        <span style={{ width: '28px', height: '28px', borderRadius: '100%', display: 'inline-block', backgroundColor: '#FFD700' }}></span>
-                        <span style={{ color: '#FFD700' }}>4</span>
+                        <span
+                            className={styles.coinIcon}
+                            style={{ width: "24px", height: "24px" }}
+                        ></span>
+                        <span className={styles.userCoinValue}>
+                            {userPlayer.coins} coins
+                        </span>
                     </div>
                 </div>
-                <div className={styles.userCardsContainer}>
-                    <span className={styles.userCard}>
-                        <h4>DUKE</h4>
-                        <label>Take 3 coins</label>
-                    </span>
-                    <span className={styles.userCard}>
-                        <h4>ASSASSIN</h4>
-                        <label>Pay 3 to eliminate</label>
-                    </span>
-                    <div className={styles.userMoves}>
-                        <div style={{ display: 'flex', columnGap: '12px', justifyContent: 'center' }}>
-                            <PrimaryButton text='Income' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Foreign Aid' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Coup (7)' width='auto' />
-                        </div>
-                        <div style={{ display: 'flex', columnGap: '12px', justifyContent: 'center' }}>
-                            <PrimaryButton text='Tax (Duke)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Assassinate (Assassin)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Steal (Captain)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
-                            <PrimaryButton text='Exchange (Ambassador)' backgroundColor='rgba(255, 255, 255, 0.098)' width='auto' />
+
+                {/* Center: Cards and Actions Section */}
+                <div className={styles.userCenterSection}>
+                    {/* Cards */}
+                    <div className={styles.userCardsContainer}>
+                        {userPlayer.cards.map((card, index) => (
+                            <span key={index} className={styles.userCard}>
+                                <span className={styles.userCardIcon}>🃏</span>
+                                <h4 className={styles.userCardName}>{card}</h4>
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Actions */}
+                    <div className={styles.userRightSection}>
+                        <div className={styles.userMoves}>
+                            <p className={styles.movesLabel}>Your Actions</p>
+                            <div className={styles.movesRow}>
+                                <PrimaryButton
+                                    text="Income"
+                                    backgroundColor="rgba(255,255,255,0.07)"
+                                    width="auto"
+                                    onClick={isMyTurn ? () => handleAction("INCOME") : undefined}
+                                />
+                                <PrimaryButton
+                                    text="Foreign Aid"
+                                    backgroundColor="rgba(255,255,255,0.07)"
+                                    width="auto"
+                                    onClick={
+                                        isMyTurn ? () => handleAction("FOREIGN AID") : undefined
+                                    }
+                                />
+                                <PrimaryButton
+                                    text="Coup (7)"
+                                    width="auto"
+                                    onClick={isMyTurn ? () => handleAction("COUP") : undefined}
+                                />
+                            </div>
+                            <div className={styles.movesRow}>
+                                <PrimaryButton
+                                    text="Tax"
+                                    backgroundColor="rgba(102,126,234,0.25)"
+                                    width="auto"
+                                    onClick={isMyTurn ? () => handleAction("TAX") : undefined}
+                                />
+                                <PrimaryButton
+                                    text="Assassinate"
+                                    backgroundColor="rgba(102,126,234,0.25)"
+                                    width="auto"
+                                    onClick={
+                                        isMyTurn ? () => handleAction("ASSASSINATE") : undefined
+                                    }
+                                />
+                                <PrimaryButton
+                                    text="Steal"
+                                    backgroundColor="rgba(102,126,234,0.25)"
+                                    width="auto"
+                                    onClick={isMyTurn ? () => handleAction("STEAL") : undefined}
+                                />
+                                <PrimaryButton
+                                    text="Exchange"
+                                    backgroundColor="rgba(102,126,234,0.25)"
+                                    width="auto"
+                                    onClick={
+                                        isMyTurn ? () => handleAction("EXCHANGE") : undefined
+                                    }
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Move preview */}
+            <Modal
+                status="Choosing Target"
+                style={{ visibility: isChoosingTarget ? "visible" : "hidden" }}
+            >
+                <Opponents
+                    opponents={players}
+                    userId={userId}
+                    setIsChoosingTarget={setIsChoosingTarget}
+                    isChoosingTarget={isChoosingTarget}
+                    dispatchGameState={dispatchGameState}
+                />
+            </Modal>
         </>
-    )
+    );
 }
 
-export default PlayRoom
+export default PlayRoom;

@@ -1,0 +1,19 @@
+from services.actions.base import BaseActionStrategy
+from utils.globals import AMOUNT_TO_STEAL
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from services.CoupGame import CoupGame
+
+
+class Steal(BaseActionStrategy):
+    def execute(self, game: 'CoupGame', **kwargs):
+        player = game.get_current_player()
+        target_player = game.get_move_target()
+
+        if not target_player:
+            raise ValueError("Target player must be specified for Steal action.")
+
+        stolen_amount = min(AMOUNT_TO_STEAL, target_player.coins)
+        target_player.coins -= stolen_amount
+        player.coins += stolen_amount

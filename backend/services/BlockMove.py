@@ -1,0 +1,7 @@
+from enum import Enum
+
+
+class BlockMove(Enum):
+    BLOCK_FOREIGN_AID = 'BLOCK FOREIGN AID'
+    BLOCK_ASSASSINATION = 'BLOCK ASSASSINATION'
+    BLOCK_STEAL = 'BLOCK STEAL'

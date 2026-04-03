@@ -4,6 +4,34 @@
     row-gap: 20px;
     flex-basis: 100%;
     width: 32rem;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    height: fit-content;
+    animation: slideInLeft 0.5s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .player {
@@ -11,49 +39,100 @@
     row-gap: 16px;
     column-gap: 12px;
     padding: 16px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.3s ease;
+    align-items: center;
+}
+
+.player:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(233, 69, 96, 0.3);
+    transform: translateX(4px);
 }
 
 .gameSettings {
     display: flex;
     flex-direction: column;
-    padding: 24px;
-    row-gap: 20px;
+    padding: 20px;
+    row-gap: 16px;
+    background: rgba(102, 126, 234, 0.08);
+    border: 1px solid rgba(102, 126, 234, 0.15);
+    border-radius: 12px;
+    margin-top: 8px;
+}
+
+.gameSettings h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #E2E8F0;
 }
 
 .settingValue {
-    color: #E94560;
+    color: #667EEA;
+    font-weight: 600;
+    font-size: 1rem;
 }
 
 .settingContainer {
     display: flex;
     flex-direction: column;
-    row-gap: 20px;
+    row-gap: 14px;
 }
 
 .settingItem {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.settingItem label {
+    color: #A8B2D1;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .nameContainer {
     display: flex;
     flex-direction: column;
-    row-gap: 4px;
+    row-gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.nameContainer span {
+    color: #E2E8F0;
+    font-weight: 500;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .playerState {
-    color: #A8B2D1;
+    color: #667EEA;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .avatar {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 100%;
-    background-color: #E94560;
+    background: linear-gradient(135deg, #667EEA, #764BA2);
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    flex-shrink: 0;
 }
 
 .lobbyContainer {
     display: flex;
-    column-gap: 32px;
-    justify-content: space-between;
+    column-gap: 40px;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px;
+    min-height: 100vh;
 }
