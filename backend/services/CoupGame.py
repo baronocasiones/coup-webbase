@@ -222,6 +222,9 @@ class CoupGame:
         if isinstance(move, GameAction):
             self.state = GameState.ACTION_DECLARED
             self.declared_move = move
+            # for trial only
+            # self.perform_action()
+            # self.next_turn()
         elif isinstance(move, BlockMove):
             self.state = GameState.BLOCK_DECLARED
             self.declared_block = move

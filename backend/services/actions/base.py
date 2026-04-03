@@ -23,7 +23,7 @@ class BaseRemoveInfluence(ABC):
         player = game.get_current_player()
         target_player = game.get_move_target()
         current_move = game.get_current_move()
-        move_cost = self.move_cost_handler.get(current_move, None)
+        move_cost = self.move_cost_handler.get(current_move)
 
         if target_player is None:
             raise ValueError("Target player must be specified for a coup.")

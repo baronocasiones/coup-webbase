@@ -85,7 +85,7 @@
 /* ── Layout ──────────────────────────────────────────────── */
 .mainContainer {
     display: flex;
-    padding: 100px 40px 240px;
+    padding: 100px 40px 300px;
     gap: 32px;
     box-sizing: border-box;
     width: 100vw;
@@ -289,13 +289,13 @@
 /* ── User panel ──────────────────────────────────────────── */
 .userUIContainer {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 40px;
-    gap: 32px;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    gap: 0;
     background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.04) 100%);
-    border-top: 2px solid rgba(233, 69, 96, 0.3);
+    border-top: 2px solid rgba(233, 69, 96, 0.4);
     position: fixed;
     bottom: 0;
     width: 100%;
@@ -304,33 +304,40 @@
     overflow: hidden;
     backdrop-filter: blur(10px);
     max-height: fit-content;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
 }
 
 .userInfo {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 16px;
     min-height: auto;
     flex-shrink: 0;
-    width: auto;
+    width: 100%;
+    padding: 18px 40px;
+    border-bottom: 1px solid rgba(233, 69, 96, 0.15);
+    background: linear-gradient(180deg, rgba(233, 69, 96, 0.08) 0%, rgba(233, 69, 96, 0.02) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .userCenterSection {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 16px;
+    justify-content: center;
+    gap: 48px;
     flex: 1;
     flex-shrink: 0;
-    justify-content: center;
+    padding: 24px 40px;
 }
 
 .userRightSection {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 16px;
     flex-shrink: 0;
     width: auto;
 }
@@ -338,7 +345,7 @@
 .userIdentifier {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .userAvatarWrapper {
@@ -348,45 +355,52 @@
 
 .youBadge {
     position: absolute;
-    bottom: -6px;
+    bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.6rem;
-    font-weight: 700;
+    font-size: 0.55rem;
+    font-weight: 800;
     text-transform: uppercase;
-    background: #E94560;
+    background: linear-gradient(135deg, #E94560, #FF6B7A);
     color: #fff;
-    padding: 1px 6px;
+    padding: 2px 8px;
     border-radius: 20px;
     white-space: nowrap;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 8px rgba(233, 69, 96, 0.4);
 }
 
 .userNameBlock {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
 }
 
 .userName {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: #fff;
+    letter-spacing: -0.01em;
 }
 
 .userStatus {
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     color: #4caf50;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .userCoins {
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: rgba(255,215,0,0.1);
-    padding: 10px 20px;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05));
+    padding: 12px 20px;
     border-radius: 10px;
-    border: 1px solid rgba(255,215,0,0.2);
+    border: 1.5px solid rgba(255,215,0,0.25);
+    box-shadow: 0 4px 12px rgba(255,215,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 .userCoinValue {
@@ -399,11 +413,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    gap: 20px;
     flex-wrap: nowrap;
-    padding: 0;
+    padding: 0 16px;
     flex-shrink: 0;
     width: auto;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    padding-right: 32px;
 }
 
 .userCard {
@@ -411,13 +427,13 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    width: 88px;
-    height: 74px;
-    border-radius: 12px;
+    gap: 6px;
+    width: 96px;
+    height: 80px;
+    border-radius: 14px;
     background: linear-gradient(135deg, rgba(233, 69, 96, 0.95), rgba(199, 54, 82, 0.95));
-    border: 2px solid rgba(233, 69, 96, 0.6);
-    box-shadow: 0 4px 16px rgba(233, 69, 96, 0.25);
+    border: 2.5px solid rgba(233, 69, 96, 0.7);
+    box-shadow: 0 8px 24px rgba(233, 69, 96, 0.3), inset 0 1px 0 rgba(255,255,255,0.15);
     padding: 4px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -434,15 +450,15 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
     transition: left 0.6s ease-in-out;
 }
 
 .userCard:hover {
-    transform: translateY(-6px) scale(1.08);
-    box-shadow: 0 12px 32px rgba(233, 69, 96, 0.4);
+    transform: translateY(-8px) scale(1.1);
+    box-shadow: 0 16px 40px rgba(233, 69, 96, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
     background: linear-gradient(135deg, rgba(248, 85, 120, 0.98), rgba(216, 69, 99, 0.98));
-    border-color: rgba(233, 69, 96, 0.9);
+    border-color: rgba(233, 69, 96, 1);
 }
 
 .userCard:hover::before {
@@ -450,20 +466,21 @@
 }
 
 .userCard:focus {
-    outline: 2px solid rgba(233, 69, 96, 0.6);
-    outline-offset: 3px;
+    outline: 2.5px solid rgba(233, 69, 96, 0.8);
+    outline-offset: 4px;
 }
 
 .userCardIcon {
-    font-size: 1.2rem;
+    font-size: 1.4rem;
 }
 
 .userCardName {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: #fff;
     text-align: center;
+    letter-spacing: -0.01em;
 }
 
 .userCardAbility {
@@ -482,7 +499,7 @@
 .userMoves {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     width: auto;
     align-items: center;
     padding-top: 0;
@@ -491,43 +508,47 @@
 }
 
 .userMoves button {
-    padding: 10px 16px !important;
-    font-size: 0.85rem !important;
-    font-weight: 600 !important;
-    border-radius: 8px !important;
+    padding: 11px 18px !important;
+    font-size: 0.88rem !important;
+    font-weight: 650 !important;
+    border-radius: 9px !important;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
     white-space: nowrap;
+    letter-spacing: 0.01em !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
 
 .userMoves button:hover:not(:disabled) {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 20px rgba(233, 69, 96, 0.3) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3) !important;
 }
 
 .userMoves button:focus {
-    outline: 2px solid rgba(233, 69, 96, 0.6) !important;
-    outline-offset: 2px !important;
+    outline: 2.5px solid rgba(233, 69, 96, 0.8) !important;
+    outline-offset: 3px !important;
 }
 
 .userMoves button:disabled {
-    opacity: 0.4 !important;
+    opacity: 0.45 !important;
     cursor: not-allowed !important;
+    filter: saturate(0.6) !important;
 }
 
 .movesLabel {
     margin: 0;
-    font-size: 0.65rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(233, 69, 96, 0.7);
+    letter-spacing: 0.15em;
+    color: rgba(233, 69, 96, 0.8);
     text-align: center;
 }
 
 .movesRow {
     display: flex;
     flex-wrap: nowrap;
-    gap: 10px;
+    gap: 12px;
     justify-content: center;
     width: 100%;
 }

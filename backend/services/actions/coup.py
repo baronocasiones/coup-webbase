@@ -1,7 +1,6 @@
 from utils.globals import COUP_COST
 from .base import BaseActionStrategy
 from .base import BaseRemoveInfluence
-from .decorators import prompt_user_input
 
 from services.Influence import Influence
 
@@ -11,7 +10,6 @@ if TYPE_CHECKING:
 
 
 class Coup(BaseActionStrategy, BaseRemoveInfluence):
-    @prompt_user_input
     def execute(self, game: 'CoupGame', **kwargs) -> list[Influence]:
         player = game.get_current_player()
         target_player = game.get_move_target()

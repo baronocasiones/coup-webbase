@@ -1,5 +1,4 @@
 from services.actions.base import BaseActionStrategy
-from services.actions.decorators import prompt_user_input
 from utils.globals import ASSASSINATION_COST
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -7,7 +6,6 @@ if TYPE_CHECKING:
 
 
 class Assassinate(BaseActionStrategy):
-    @prompt_user_input
     def execute(self, game: 'CoupGame', **kwargs):
         player = game.get_current_player()
         target_player = game.get_move_target()

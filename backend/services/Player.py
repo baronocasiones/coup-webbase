@@ -29,6 +29,9 @@ class Player:
     def get_cards(self) -> list[Influence]:
         return self.cards
 
+    def get_coins(self) -> int:
+        return self.coins
+
     def add_card(self, card: Influence) -> None:
         self.moves.extend(card.get_actions())
         self.cards.append(card)

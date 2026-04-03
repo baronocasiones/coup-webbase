@@ -56,11 +56,17 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
 
             if action == "declare_move":
                 payload_move: str = payload.get("move")
+                target: str = payload.get("target")
                 try:
                     move = GameAction(payload_move.upper())  # Validate move
+                    game_controller.declare_move(
+                            player_id=user_id,
+                            move=move,
+                            target_id=UUID(target) if target else None,
+                            blocker_id=UUID(payload.get("blockerId")) if payload.get("blockerId") else None
+                    )
                 except ValueError:
                     HTTPException(status_code=400, detail=f"Invalid move: {payload_move}")
-                game_controller.declare_move(user_id, move)
 
             elif action == "block":
                 pass
