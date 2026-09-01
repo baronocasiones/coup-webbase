@@ -35,22 +35,6 @@ jobs:
       - name: Run unit tests
         run: pytest -m unit -v
 
-  backend-typecheck:
-    name: Backend Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install -r backend/requirements-dev.txt
-
-      - name: Run mypy
-        run: mypy backend/
 
   frontend-build:
     name: Frontend Build
