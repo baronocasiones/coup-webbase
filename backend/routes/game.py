@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
 from controllers.GameController import game_controller
@@ -6,7 +7,9 @@ from models.UserPlayerModel import UserPlayerModel
 
 from services.GameAction import GameAction
 from services.Influence import Influence
+from services.BlockMove import BlockMove
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -69,8 +72,19 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     await websocket.send_json({"error": str(e)})
 
             elif action == "block":
-                # TODO: implement block resolution
-                await websocket.send_json({"error": "Block not yet implemented"})
+                try:
+                    block_move_str = payload.get("move")
+                    if not block_move_str:
+                        await websocket.send_json({"error": "Missing block move"})
+                        continue
+                    block_move = BlockMove(block_move_str.upper())
+                    game_controller.declare_move(
+                        player_id=user_id,
+                        move=block_move,
+                        blocker_id=user_id,
+                    )
+                except (ValueError, Exception) as e:
+                    await websocket.send_json({"error": str(e)})
 
             elif action == "exchange_selection":
                 try:
@@ -112,6 +126,5 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
         game_controller.game_manager.disconnect(user_id)
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error("Game WS error: %s", e, exc_info=True)
         game_controller.game_manager.disconnect(user_id)

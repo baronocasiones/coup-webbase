@@ -5,6 +5,7 @@ from services.GameState import GameState
 from services.GameAction import GameAction
 from services.Influence import Influence
 from utils.globals import COUP_COST, ASSASSINATION_COST, AMOUNT_TO_STEAL
+from utils.exceptions import SynchronizationError
 
 
 pytestmark = pytest.mark.unit
@@ -153,11 +154,8 @@ class TestAssassinate:
         target = players[1]
         attacker.coins = 10
 
-        game.declare_move(attacker.id, GameAction.ASSASSINATE, target_id=target.id)
-        game.handle_no_challenge()
-
-        assert attacker.coins == 10 - ASSASSINATION_COST
-        assert game.state == GameState.INFLUENCE_SELECTION_PENDING
+        with pytest.raises(SynchronizationError, match="must coup"):
+            game.declare_move(attacker.id, GameAction.ASSASSINATE, target_id=target.id)
 
     def test_assassinate_with_insufficient_coins(self, game_with_two_players):
         game, players = game_with_two_players

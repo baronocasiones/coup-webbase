@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from models.ChatModel import ChatModel
 from controllers.LobbyController import lobby_controller
+from utils.exceptions import SynchronizationError
 
 router = APIRouter()
 
@@ -12,7 +13,10 @@ def get_chats() -> list[ChatModel]:
 
 @router.post("/chat", status_code=201, response_model=list[ChatModel])
 def add_chat(chat: ChatModel):
-    lobby_controller.add_game_chat(chat.model_dump())
+    try:
+        lobby_controller.add_game_chat(chat.model_dump())
+    except SynchronizationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return lobby_controller.get_game_chats()
 
 

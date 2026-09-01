@@ -90,17 +90,15 @@ class CoupGame:
             self.chats.append(chat_message)
             return
 
-        last_timestamp = self.chats[-1].get('timestamp')
-        if last_timestamp is not None and\
-                chat_message_timestamp is not None and\
-                last_timestamp <= chat_message_timestamp:
+        last_timestamp = self.chats[-1].get("timestamp")
+        if last_timestamp is None or chat_message_timestamp is None:
+            self.chats.append(chat_message)
+        elif last_timestamp <= chat_message_timestamp:
             self.chats.append(chat_message)
         else:
             raise SynchronizationError(
-                f"""
-                Chat message timestamp ({chat_message_timestamp}) is older than the
-                latest message ({last_timestamp}).
-                """
+                f"Chat message timestamp ({chat_message_timestamp}) is older than "
+                f"the latest message ({last_timestamp})."
             )
 
     def remove_player(self, player_id: UUID) -> None:
@@ -205,11 +203,26 @@ class CoupGame:
             raise SynchronizationError("It's not this player's turn.")
         if isinstance(move, BlockMove) and current_player.id == player_id:
             raise SynchronizationError("Current player cannot block their own move.")
-        if self.state != GameState.WAITING_FOR_ACTION:
-            raise SynchronizationError("Game is not in a state to accept moves. current state: ", self.state)
+
+        # State guards: GameAction requires WAITING_FOR_ACTION, BlockMove requires ACTION_DECLARED
+        if isinstance(move, GameAction) and self.state != GameState.WAITING_FOR_ACTION:
+            raise SynchronizationError(
+                f"Game is not in a state to accept actions. current state: {self.state}"
+            )
+        if isinstance(move, BlockMove) and self.state != GameState.ACTION_DECLARED:
+            raise SynchronizationError(
+                f"Can only block when an action has been declared. current state: {self.state}"
+            )
 
         if isinstance(move, BlockMove) and self.declared_move is not None and not self.declared_move.is_blockable():
             raise ValueError("This move cannot be blocked.")
+
+        # Forced coup at 10+ coins
+        if isinstance(move, GameAction) and move != GameAction.COUP:
+            if current_player.coins >= globals.COUP_THRESHOLD:
+                raise SynchronizationError(
+                    f"You have {current_player.coins} coins and must coup."
+                )
 
         # LOGIC
         if move == GameAction.INCOME: 
@@ -265,24 +278,43 @@ class CoupGame:
     def get_challenge_loser(self, challenger_id: Optional[UUID] = None) -> UUID | None:
         """
         Get the ID of the player who loses the challenge.
+        When state is ACTION_DECLARED, challenges the original actor.
+        When state is BLOCK_DECLARED, challenges the blocker.
         """
         if challenger_id is None:
             return None
         if not isinstance(challenger_id, UUID):
             raise ValueError('challenger_id should be a type UUID')
-        if isinstance(self.declared_move, GameAction) and not self.declared_move.is_challengeable():
-            raise ValueError("Declared move cannot be challenged.")
 
         if self.state not in [GameState.ACTION_DECLARED, GameState.BLOCK_DECLARED]:
-            raise SynchronizationError('Player cannot challenge in this time.')
+            raise SynchronizationError('Player cannot challenge in this state.')
 
-        current_player = self.get_current_player()
         challenger_player = self.get_player_by_id(challenger_id)
         self.challenger_id = challenger_id
 
         if challenger_player is None:
             raise ValueError("Challenger player not found.")
 
+        if self.state == GameState.BLOCK_DECLARED:
+            # Challenge targets the blocker
+            blocker = self.get_player_by_id(self.blocker_id)
+            if blocker is None:
+                raise ValueError("Blocker not found.")
+            if self.declared_block not in blocker.moves:
+                blocker.is_lying = True
+            self.state = GameState.CHALLENGE_HANDLE
+            if blocker.is_lying:
+                self.challenge_loser = blocker
+                return blocker.id
+            else:
+                self.challenge_loser = challenger_player
+                return challenger_id
+
+        # ACTION_DECLARED path — challenge the original actor
+        if isinstance(self.declared_move, GameAction) and not self.declared_move.is_challengeable():
+            raise ValueError("Declared move cannot be challenged.")
+
+        current_player = self.get_current_player()
         if self.declared_move not in current_player.moves:
             current_player.is_lying = True
 
@@ -297,9 +329,15 @@ class CoupGame:
     def handle_no_challenge(self) -> None:
         """
         Handle the scenario where no challenge is made against the declared move.
+        If a block was declared and not challenged, the action is cancelled.
         """
         if self.state not in [GameState.ACTION_DECLARED, GameState.BLOCK_DECLARED]:
-            raise SynchronizationError("Cannot proceeed without a declared move.")
+            raise SynchronizationError("Cannot proceed without a declared move.")
+
+        if self.state == GameState.BLOCK_DECLARED:
+            # Block stands, action is cancelled
+            self.next_turn()
+            return
 
         # Proceed to execute the declared move
         self.perform_action()
@@ -330,6 +368,7 @@ class CoupGame:
         self.currentTurnIndex = (self.currentTurnIndex + 1) % len(self.players)
         self.state = GameState.WAITING_FOR_ACTION
         self.declared_move = None
+        self.declared_block = None
         self.challenge_loser = None
         self.move_target_id = None
         self.challenger_id = None

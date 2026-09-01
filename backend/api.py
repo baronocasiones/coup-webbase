@@ -1,10 +1,12 @@
+import logging
+import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
 from fastapi.middleware.cors import CORSMiddleware
 from controllers.LobbyController import lobby_controller
 from controllers.GameController import game_controller
 from utils.state import game
-import json
+from logging_config import setup_logging
 
 from services.ConnectionManager import ConnectionManager
 
@@ -14,6 +16,9 @@ from models.ChatModel import ChatModel
 from routes.players import router as players_router
 from routes.chats import router as chats_router
 from routes.game import router as game_router
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 game_manager = ConnectionManager()
 chat_manager = ConnectionManager()
@@ -73,10 +78,10 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
 
     except WebSocketDisconnect as e:
         game_manager.disconnect(user_id)
-        print(e)
+        logger.warning("Lobby WS disconnect: %s", e)
 
     except Exception as e:
-        print(f'Error: {e}')
+        logger.error("Lobby WS error: %s", e, exc_info=True)
 
 
 @app.websocket('/ws/chat')
@@ -96,23 +101,12 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: UUID):
                 await websocket.send_json({"error": "Invalid JSON format"})
                 continue
 
-            user_id_str = message_data.get("userId")
-            if not user_id_str:
-                await websocket.send_json({"error": "Unauthorized: Missing user_id"})
-                continue
-            user_id = UUID(user_id_str)
-            message_data['userId'] = user_id
-            last_chat = lobby_controller.get_game_last_chat()
-            if last_chat is not None and user_id != last_chat.get('userId') and message_data.get('message') != last_chat.get('message'):
-                await websocket.send_json({"error": "SynchronizationError: Chat data is not updated"})
-                continue
-
-            response = [ChatModel(**chat).model_dump(mode='json') for chat in lobby_controller.get_game_chats()]
-            await chat_manager.broadcast(user_id, response)
+            # Broadcast the raw message to all OTHER connected clients
+            await chat_manager.broadcast(user_id, message_data)
 
     except WebSocketDisconnect as e:
         chat_manager.disconnect(user_id)
-        print(e)
+        logger.warning("Chat WS disconnect: %s", e)
 
     except Exception as e:
-        print(f'Error: {e}')
+        logger.error("Chat WS error: %s", e, exc_info=True)

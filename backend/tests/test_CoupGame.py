@@ -171,14 +171,14 @@ class TestCoupGameEdgeCases:
         assert player.id in game.players
 
     def test_declare_move_block_move_no_declared_action(self, game, player, player2):
-        """Declaring a BlockMove when no action is declared is allowed (nothing to block)."""
+        """Declaring a BlockMove when no action is declared raises SynchronizationError."""
         game.add_player(player)
         game.add_player(player2)
         game.start_game()
         # After start_game, state is WAITING_FOR_ACTION, declared_move is None
-        # The code allows BlockMove when declared_move is None
-        game.declare_move(player2.id, BlockMove.BLOCK_FOREIGN_AID, None, player2.id)
-        assert game.state == GameState.BLOCK_DECLARED
+        # Blocks require ACTION_DECLARED state
+        with pytest.raises(SynchronizationError, match="Can only block when an action has been declared"):
+            game.declare_move(player2.id, BlockMove.BLOCK_FOREIGN_AID, None, player2.id)
 
     def test_get_current_player_out_of_range(self, game, player):
         """get_current_player with invalid index should raise IndexError."""
@@ -197,13 +197,13 @@ class TestCoupGameEdgeCases:
             game.get_challenge_loser("not-a-uuid")
 
     def test_declare_move_block_non_blockable_move(self, game, player, player2):
-        """Declaring a BlockMove after a non-blockable move raises SynchronizationError (wrong state)."""
+        """Declaring a BlockMove after a non-blockable move raises ValueError."""
         game.add_player(player)
         game.add_player(player2)
         game.start_game()
         game.declare_move(player.id, GameAction.TAX)
-        # State is now ACTION_DECLARED, not WAITING_FOR_ACTION
-        with pytest.raises(SynchronizationError, match="not in a state to accept"):
+        # State is ACTION_DECLARED, but TAX is not blockable
+        with pytest.raises(ValueError, match="cannot be blocked"):
             game.declare_move(player2.id, BlockMove.BLOCK_FOREIGN_AID, None, player2.id)
 
     def test_perform_action_no_handler(self, game, player, player2):

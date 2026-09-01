@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from utils.globals import COUP_COST, ASSASSINATION_COST
 from services.Influence import Influence
@@ -5,6 +6,8 @@ from services.GameAction import GameAction
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from services.CoupGame import CoupGame
+
+logger = logging.getLogger(__name__)
 
 
 class BaseActionStrategy(ABC):
@@ -33,7 +36,7 @@ class BaseRemoveInfluence(ABC):
         try:
             player.coins -= move_cost
             target_player.remove_card(influence_to_remove)
-        except IndexError as e:
-            print(e)
+        except ValueError as e:
+            logger.error("Failed to remove influence: %s", e)
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            logger.error("Unexpected error in phase_two: %s", e, exc_info=True)
