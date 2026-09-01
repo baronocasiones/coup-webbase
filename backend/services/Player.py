@@ -1,7 +1,6 @@
 from uuid import uuid4, UUID
 from .GameAction import GameAction
 from .Influence import Influence
-from fastapi import WebSocket
 from services.BlockMove import BlockMove
 
 
@@ -11,7 +10,6 @@ class Player:
         self.id: UUID = uuid4()
         self.cards: list[Influence] = []
         self.coins: int = 2
-        self.websocket: WebSocket
         self.isReady: bool = False
         self.moves: list[GameAction | BlockMove] = [
             GameAction.INCOME,
@@ -40,6 +38,17 @@ class Player:
     def update_cards(self, new_cards: list[Influence]) -> None:
         self.cards = new_cards
         self.numberOfCards = len(self.cards)
+        self._recalculate_moves()
+
+    def _recalculate_moves(self) -> None:
+        """Recalculate available moves from current cards."""
+        self.moves = [
+            GameAction.INCOME,
+            GameAction.FOREIGN_AID,
+            GameAction.COUP,
+        ]
+        for card in self.cards:
+            self.moves.extend(card.get_actions())
 
     def toggle_ready(self) -> None:
         self.isReady = not self.isReady

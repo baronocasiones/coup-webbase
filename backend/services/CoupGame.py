@@ -41,6 +41,10 @@ class CoupGame:
         # Challenge state
         self.challenge_loser: Optional[Player] = None
 
+        # Two-phase action state
+        self.pending_influence_target: Optional[UUID] = None
+        self.exchange_cards: Optional[list[Influence]] = None
+
         self.move_handler = {
             GameAction.INCOME: Income(),
             GameAction.FOREIGN_AID: ForeignAid(),
@@ -222,9 +226,6 @@ class CoupGame:
         if isinstance(move, GameAction):
             self.state = GameState.ACTION_DECLARED
             self.declared_move = move
-            # for trial only
-            # self.perform_action()
-            # self.next_turn()
         elif isinstance(move, BlockMove):
             self.state = GameState.BLOCK_DECLARED
             self.declared_block = move
@@ -302,18 +303,29 @@ class CoupGame:
 
         # Proceed to execute the declared move
         self.perform_action()
-        self.next_turn()
+
+        # Don't advance turn if action requires player input (card selection)
+        if self.state not in (GameState.INFLUENCE_SELECTION_PENDING, GameState.PENDING_EXCHANGE):
+            self.next_turn()
 
     def next_turn(self) -> None:
         """
         Advance to the next player's turn and reset the game and players state.
+        Eliminates any players with 0 cards before advancing.
         """
-        if any([len(player.cards) == 0 for player in self.players.values()]):
-            raise SynchronizationError("Cannot proceed to next turn: a player has no cards left.")
+        # Eliminate players with 0 cards
+        eliminated = [pid for pid, p in self.players.items() if len(p.cards) == 0]
+        for pid in eliminated:
+            del self.players[pid]
 
-        if len(self.players) == 1:
+        # Check win condition
+        if len(self.players) <= 1:
             self.state = GameState.GAME_OVER
             return
+
+        # Clamp turn index if needed (in case players were removed)
+        if self.currentTurnIndex >= len(self.players):
+            self.currentTurnIndex = 0
 
         self.currentTurnIndex = (self.currentTurnIndex + 1) % len(self.players)
         self.state = GameState.WAITING_FOR_ACTION
@@ -324,6 +336,55 @@ class CoupGame:
         self.blocker_id = None
         for player in self.players.values():
             player.is_lying = False
+
+    def resolve_influence_selection(self, player_id: UUID, card_to_remove: Influence) -> None:
+        """
+        Handle the target player's choice of which influence card to lose.
+        Called after INFLUENCE_SELECTION_PENDING state (Assassinate/Coup).
+        """
+        if self.state != GameState.INFLUENCE_SELECTION_PENDING:
+            raise SynchronizationError("Game is not waiting for influence selection.")
+
+        if self.pending_influence_target is None:
+            raise ValueError("No pending influence target set.")
+
+        if player_id != self.pending_influence_target:
+            raise SynchronizationError("This player is not the target of the influence selection.")
+
+        target_player = self.get_player_by_id(player_id)
+        if target_player is None:
+            raise ValueError("Target player not found.")
+
+        target_player.remove_card(card_to_remove)
+        self.pending_influence_target = None
+        self.next_turn()
+
+    def resolve_exchange(self, player_id: UUID, chosen_cards: list[Influence]) -> None:
+        """
+        Handle the current player's card selection for Exchange.
+        Called after PENDING_EXCHANGE state.
+        """
+        if self.state != GameState.PENDING_EXCHANGE:
+            raise SynchronizationError("Game is not waiting for exchange selection.")
+
+        if self.exchange_cards is None:
+            raise ValueError("No exchange cards available.")
+
+        current_player = self.get_current_player()
+        if player_id != current_player.id:
+            raise SynchronizationError("Only the current player can select exchange cards.")
+
+        from .actions.exchange import Exchange
+        exchange_handler = Exchange()
+        exchange_handler.phase_two(
+            game=self,
+            player_choice=chosen_cards,
+            initial_player_card=current_player.get_cards(),
+            combined_influences=self.exchange_cards,
+        )
+
+        self.exchange_cards = None
+        self.next_turn()
 
     def perform_action(self) -> None:
         """

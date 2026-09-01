@@ -22,7 +22,7 @@ class BaseRemoveInfluence(ABC):
     def phase_two(self, game: 'CoupGame', influence_to_remove: Influence, **kwargs):
         player = game.get_current_player()
         target_player = game.get_move_target()
-        current_move = game.get_current_move()
+        current_move = game.get_declared_move()
         move_cost = self.move_cost_handler.get(current_move)
 
         if target_player is None:

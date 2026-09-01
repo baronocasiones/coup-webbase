@@ -17,3 +17,4 @@ class PlayerNotFoundError(Exception):
     """
     Raise when player is not found in the game.
     """
+    pass

@@ -61,15 +61,15 @@ class ConnectionManager:
         Args:
             player_id: The unique identifier of the target player.
             message: The JSON-serializable message to send.
-
-        Raises:
-            ValueError: If no active connection exists for the given player ID.
         """
         connection = self.active_connections.get(player_id)
         if connection is None:
             raise ValueError(f"No active connection for player ID: {player_id}")
 
-        await connection.send_json(message)
+        try:
+            await connection.send_json(message)
+        except Exception:
+            self.disconnect(player_id)
 
     async def broadcast(self, sender: UUID, message: dict | list):
         """Broadcast a message to all connected players except the sender.
@@ -78,6 +78,12 @@ class ConnectionManager:
             sender: The unique identifier of the player sending the message.
             message: The JSON-serializable message to broadcast.
         """
+        dead = []
         for id, connection in self.active_connections.items():
             if id != sender:
-                await connection.send_json(message)
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    dead.append(id)
+        for pid in dead:
+            self.disconnect(pid)

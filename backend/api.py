@@ -93,19 +93,21 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: UUID):
             try:
                 message_data = json.loads(await websocket.receive_text())
             except json.JSONDecodeError:
-                raise HTTPException(400, "Invalid JSON format")
+                await websocket.send_json({"error": "Invalid JSON format"})
+                continue
 
             user_id_str = message_data.get("userId")
             if not user_id_str:
-                raise HTTPException(400, "Unauthorized: Missing user_id")
+                await websocket.send_json({"error": "Unauthorized: Missing user_id"})
+                continue
             user_id = UUID(user_id_str)
             message_data['userId'] = user_id
             last_chat = lobby_controller.get_game_last_chat()
             if last_chat is not None and user_id != last_chat.get('userId') and message_data.get('message') != last_chat.get('message'):
-                raise HTTPException(400, "SynchronizationError: Chat data is not updated")
+                await websocket.send_json({"error": "SynchronizationError: Chat data is not updated"})
+                continue
 
             response = [ChatModel(**chat).model_dump(mode='json') for chat in lobby_controller.get_game_chats()]
-            print("RESPONSE: ", response)
             await chat_manager.broadcast(user_id, response)
 
     except WebSocketDisconnect as e:

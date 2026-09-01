@@ -1,4 +1,5 @@
 from services.actions.base import BaseActionStrategy
+from services.GameState import GameState
 from services.Influence import Influence
 
 from utils.globals import EXCHANGE_DRAW
@@ -18,6 +19,11 @@ class Exchange(BaseActionStrategy):
         player_cards = current_player.get_cards()
 
         combined_influences = player_cards + drawn_cards
+
+        # Enter two-phase state: player must choose which cards to keep
+        game.state = GameState.PENDING_EXCHANGE
+        game.exchange_cards = combined_influences
+
         return combined_influences
 
     def phase_two(
@@ -47,6 +53,6 @@ class Exchange(BaseActionStrategy):
         # Update player's influences
         current_player.update_cards(player_choice)
 
-        # Return unchosen influences to the deck
+        # Return unchosen influences to the bottom of the deck
         for influence in cards_to_return:
             deck.return_card(influence)

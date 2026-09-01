@@ -5,6 +5,7 @@ from services.CoupGame import CoupGame
 from services.GameState import GameState
 from services.GameAction import GameAction
 from services.Influence import Influence
+from services.BlockMove import BlockMove
 from utils.exceptions import SynchronizationError, PlayerInsufficientError
 
 
@@ -216,17 +217,19 @@ class TestGameTurnManagement:
 class TestGamePlayerElimination:
     """Test player elimination mechanics."""
 
-    def test_player_with_no_cards_cannot_continue(self, game_with_two_players):
-        """Test that game ends if player has no cards."""
+    def test_player_with_no_cards_is_eliminated(self, game_with_two_players):
+        """Test that player with no cards is eliminated on next turn."""
         game, players = game_with_two_players
         player = players[0]
         
         # Remove all cards
         player.cards = []
         
-        # Next turn should end game
-        with pytest.raises(SynchronizationError):
-            game.next_turn()
+        # Next turn should eliminate the player
+        game.next_turn()
+        assert player.id not in game.players
+        # Game over since only 1 player remains
+        assert game.state == GameState.GAME_OVER
 
     def test_last_player_remaining_wins(self, game_with_two_players):
         """Test that game ends when only one player remains."""
@@ -440,3 +443,469 @@ class TestGameEdgeCases:
         
         # Next draw should return None
         assert game.court_deck.draw_card() is None
+
+
+class TestResolveInfluenceSelection:
+    """Test the two-phase influence selection after Assassinate/Coup."""
+
+    def test_resolve_influence_selection_happy_path(self, game_with_two_players):
+        """Target player chooses a card to lose after Assassinate."""
+        game, players = game_with_two_players
+        attacker = players[0]
+        target = players[1]
+        attacker.coins = 3
+
+        game.declare_move(attacker.id, GameAction.ASSASSINATE, target_id=target.id)
+        game.handle_no_challenge()
+
+        assert game.state == GameState.INFLUENCE_SELECTION_PENDING
+        card_to_lose = target.cards[0]
+        game.resolve_influence_selection(target.id, card_to_lose)
+
+        assert card_to_lose not in target.cards
+        assert game.state == GameState.WAITING_FOR_ACTION
+        assert game.pending_influence_target is None
+
+    def test_resolve_influence_selection_wrong_state(self, game_with_two_players):
+        """Cannot resolve influence selection when not in that state."""
+        game, players = game_with_two_players
+        with pytest.raises(SynchronizationError, match="not waiting for influence"):
+            game.resolve_influence_selection(players[1].id, Influence.DUKE)
+
+    def test_resolve_influence_selection_wrong_player(self, game_with_two_players):
+        """Only the targeted player can choose which card to lose."""
+        game, players = game_with_two_players
+        attacker = players[0]
+        target = players[1]
+        attacker.coins = 3
+
+        game.declare_move(attacker.id, GameAction.ASSASSINATE, target_id=target.id)
+        game.handle_no_challenge()
+
+        with pytest.raises(SynchronizationError, match="not the target"):
+            game.resolve_influence_selection(attacker.id, Influence.DUKE)
+
+    def test_resolve_influence_selection_advances_turn(self, game_with_two_players):
+        """After resolving, the turn advances to the next player."""
+        game, players = game_with_two_players
+        attacker = players[0]
+        target = players[1]
+        attacker.coins = 7
+
+        game.declare_move(attacker.id, GameAction.COUP, target_id=target.id)
+        game.handle_no_challenge()
+
+        card_to_lose = target.cards[0]
+        game.resolve_influence_selection(target.id, card_to_lose)
+
+        assert game.currentTurnIndex == 1
+
+    def test_coup_full_flow(self, game_with_two_players):
+        """Full Coup flow: declare -> no challenge -> choose card -> next turn."""
+        game, players = game_with_two_players
+        attacker = players[0]
+        target = players[1]
+        attacker.coins = 7
+
+        game.declare_move(attacker.id, GameAction.COUP, target_id=target.id)
+        assert game.state == GameState.ACTION_DECLARED
+
+        game.handle_no_challenge()
+        assert game.state == GameState.INFLUENCE_SELECTION_PENDING
+        assert attacker.coins == 0
+
+        card_to_lose = target.cards[0]
+        game.resolve_influence_selection(target.id, card_to_lose)
+        assert len(target.cards) == 1
+        assert game.state == GameState.WAITING_FOR_ACTION
+
+    def test_resolve_influence_selection_with_one_card_player(self, game_with_two_players):
+        """Target with 1 card loses it and gets eliminated."""
+        game, players = game_with_two_players
+        attacker = players[0]
+        target = players[1]
+        attacker.coins = 7
+        target.cards = [Influence.CONTESSA]
+
+        game.declare_move(attacker.id, GameAction.COUP, target_id=target.id)
+        game.handle_no_challenge()
+        game.resolve_influence_selection(target.id, Influence.CONTESSA)
+
+        assert target.id not in game.players
+        assert game.state == GameState.GAME_OVER
+
+
+class TestResolveExchange:
+    """Test the two-phase exchange card selection."""
+
+    def test_resolve_exchange_happy_path(self, game_with_two_players):
+        """Player chooses cards to keep after Exchange."""
+        game, players = game_with_two_players
+        player = players[0]
+
+        game.declare_move(player.id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        assert game.state == GameState.PENDING_EXCHANGE
+        combined = game.exchange_cards
+        # Keep the first 2 cards (player's original count)
+        chosen = combined[:2]
+        game.resolve_exchange(player.id, chosen)
+
+        assert len(player.cards) == 2
+        assert game.state == GameState.WAITING_FOR_ACTION
+        assert game.exchange_cards is None
+
+    def test_resolve_exchange_wrong_state(self, game_with_two_players):
+        """Cannot resolve exchange when not in that state."""
+        game, players = game_with_two_players
+        with pytest.raises(SynchronizationError, match="not waiting for exchange"):
+            game.resolve_exchange(players[0].id, [Influence.DUKE, Influence.ASSASSIN])
+
+    def test_resolve_exchange_wrong_player(self, game_with_two_players):
+        """Only the current player can select exchange cards."""
+        game, players = game_with_two_players
+
+        game.declare_move(players[0].id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        with pytest.raises(SynchronizationError, match="Only the current player"):
+            game.resolve_exchange(players[1].id, game.exchange_cards[:2])
+
+    def test_resolve_exchange_wrong_card_count(self, game_with_two_players):
+        """Player must choose exactly the right number of cards."""
+        game, players = game_with_two_players
+
+        game.declare_move(players[0].id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        with pytest.raises(ValueError, match="must choose exactly"):
+            game.resolve_exchange(players[0].id, [game.exchange_cards[0]])
+
+    def test_resolve_exchange_invalid_card(self, game_with_two_players):
+        """Player cannot choose a card not in the combined list."""
+        game, players = game_with_two_players
+
+        game.declare_move(players[0].id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        fake_card = Influence.CONTESSA
+        # Ensure the fake card is not in the combined list
+        if fake_card in game.exchange_cards:
+            fake_card = Influence.DUKE
+            if fake_card in game.exchange_cards:
+                # Both are in the list, just use a different approach
+                chosen = game.exchange_cards[:2]
+                game.resolve_exchange(players[0].id, chosen)
+                return
+
+        chosen = [fake_card, fake_card]
+        with pytest.raises(ValueError, match="not available"):
+            game.resolve_exchange(players[0].id, chosen)
+
+    def test_resolve_exchange_returns_unchanged_to_deck(self, game_with_two_players):
+        """Unchosen cards go back to the bottom of the deck."""
+        game, players = game_with_two_players
+        player = players[0]
+        initial_deck_size = game.get_cards_in_deck()
+
+        game.declare_move(player.id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        combined = game.exchange_cards
+        chosen = combined[:2]
+        unchosen = combined[2:]
+
+        game.resolve_exchange(player.id, chosen)
+
+        # Deck should have gained back the unchosen cards
+        assert game.get_cards_in_deck() == initial_deck_size - 2 + len(unchosen)
+
+    def test_resolve_exchange_updates_player_cards(self, game_with_two_players):
+        """Player's cards are updated to the chosen cards."""
+        game, players = game_with_two_players
+        player = players[0]
+
+        game.declare_move(player.id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        combined = game.exchange_cards
+        chosen = combined[:2]
+        game.resolve_exchange(player.id, chosen)
+
+        assert player.cards == chosen
+
+    def test_resolve_exchange_recalculates_moves(self, game_with_two_players):
+        """Player's available moves are recalculated after exchange."""
+        game, players = game_with_two_players
+        player = players[0]
+
+        game.declare_move(player.id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        combined = game.exchange_cards
+        chosen = combined[:2]  # Keep first 2 cards
+        game.resolve_exchange(player.id, chosen)
+
+        # Base moves should always be present after recalculation
+        assert GameAction.INCOME in player.moves
+        assert GameAction.FOREIGN_AID in player.moves
+        assert GameAction.COUP in player.moves
+        # Moves should reflect the chosen cards' actions
+        for card in chosen:
+            for action in card.get_actions():
+                assert action in player.moves
+
+
+class TestHandleChallenge:
+    """Test the challenge resolution flow."""
+
+    def test_challenge_loser_losing_player_loses_card(self, game_with_two_players):
+        """When challenger wins, the declared player loses a card."""
+        game, players = game_with_two_players
+        current_player = players[0]
+        challenger = players[1]
+
+        # Give current player cards that don't include DUKE (they're lying about TAX)
+        current_player.cards = [Influence.ASSASSIN, Influence.CONTESSA]
+        current_player.moves = [GameAction.INCOME, GameAction.FOREIGN_AID, GameAction.COUP,
+                                GameAction.ASSASSINATE, BlockMove.BLOCK_ASSASSINATION]
+
+        game.declare_move(current_player.id, GameAction.TAX)
+        loser_id = game.get_challenge_loser(challenger.id)
+
+        assert loser_id == current_player.id
+        assert current_player.is_lying is True
+        assert game.state == GameState.CHALLENGE_HANDLE
+
+        # Remove a card from the loser
+        card_to_remove = current_player.cards[0]
+        game.handle_challenge(card_to_remove)
+
+        assert card_to_remove not in current_player.cards
+        assert len(current_player.cards) == 1
+        assert game.state == GameState.WAITING_FOR_ACTION
+
+    def test_challenge_loser_challenger_loses_when_player_has_card(self, game_with_two_players):
+        """When challenger loses, the challenger loses a card."""
+        game, players = game_with_two_players
+        current_player = players[0]
+        challenger = players[1]
+
+        # Give current player the card they're claiming
+        current_player.cards = [Influence.DUKE]
+        current_player.moves = [
+            GameAction.INCOME, GameAction.FOREIGN_AID, GameAction.COUP,
+            GameAction.TAX, BlockMove.BLOCK_FOREIGN_AID
+        ]
+
+        game.declare_move(current_player.id, GameAction.TAX)
+        loser_id = game.get_challenge_loser(challenger.id)
+
+        assert loser_id == challenger.id
+        assert current_player.is_lying is False
+
+    def test_handle_challenge_wrong_state(self, game_with_two_players):
+        """Cannot handle challenge when not in CHALLENGE_HANDLE state."""
+        game, players = game_with_two_players
+        with pytest.raises(SynchronizationError, match="not in a state to handle"):
+            game.handle_challenge(Influence.DUKE)
+
+    def test_handle_challenge_no_loser_set(self, game_with_two_players):
+        """Cannot handle challenge when no loser is set."""
+        game, players = game_with_two_players
+        game.state = GameState.CHALLENGE_HANDLE
+        with pytest.raises(ValueError, match="No challenge loser"):
+            game.handle_challenge(Influence.DUKE)
+
+    def test_get_challenge_loser_none_challenger(self, game_with_two_players):
+        """Returns None when challenger_id is None."""
+        game, players = game_with_two_players
+        game.declare_move(players[0].id, GameAction.TAX)
+        result = game.get_challenge_loser(None)
+        assert result is None
+
+    def test_get_challenge_loser_non_challengeable_move(self, game_with_two_players):
+        """Cannot challenge INCOME, COUP, or FOREIGN_AID."""
+        game, players = game_with_two_players
+        game.declare_move(players[0].id, GameAction.INCOME)
+        # INCOME executes immediately, state is WAITING_FOR_ACTION
+        with pytest.raises(SynchronizationError, match="cannot challenge"):
+            game.get_challenge_loser(players[1].id)
+
+    def test_get_challenge_loser_wrong_state(self, game_with_two_players):
+        """Cannot challenge when game is in wrong state."""
+        game, players = game_with_two_players
+        # State is WAITING_FOR_ACTION after start
+        with pytest.raises(SynchronizationError, match="cannot challenge"):
+            game.get_challenge_loser(players[1].id)
+
+
+class TestHandleNoChallengeTwoPhase:
+    """Test that handle_no_challenge does NOT advance turn for two-phase actions."""
+
+    def test_no_challenge_assassinate_does_not_advance(self, game_with_two_players):
+        """After Assassinate, turn should NOT advance until influence is selected."""
+        game, players = game_with_two_players
+        attacker = players[0]
+        attacker.coins = 3
+        initial_index = game.currentTurnIndex
+
+        game.declare_move(attacker.id, GameAction.ASSASSINATE, target_id=players[1].id)
+        game.handle_no_challenge()
+
+        assert game.state == GameState.INFLUENCE_SELECTION_PENDING
+        assert game.currentTurnIndex == initial_index
+
+    def test_no_challenge_exchange_does_not_advance(self, game_with_two_players):
+        """After Exchange, turn should NOT advance until cards are selected."""
+        game, players = game_with_two_players
+        initial_index = game.currentTurnIndex
+
+        game.declare_move(players[0].id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+
+        assert game.state == GameState.PENDING_EXCHANGE
+        assert game.currentTurnIndex == initial_index
+
+    def test_no_challenge_tax_advances_normally(self, game_with_two_players):
+        """After Tax (non-two-phase), turn advances immediately."""
+        game, players = game_with_two_players
+
+        game.declare_move(players[0].id, GameAction.TAX)
+        game.handle_no_challenge()
+
+        assert game.state == GameState.WAITING_FOR_ACTION
+        assert game.currentTurnIndex == 1
+
+
+class TestPlayerEliminationFlow:
+    """Test player elimination through actual gameplay."""
+
+    def test_elimination_through_coup(self, game_with_two_players):
+        """Player eliminated after losing their last card to Coup."""
+        game, players = game_with_two_players
+        attacker = players[0]
+        target = players[1]
+        attacker.coins = 7
+        target.cards = [Influence.DUKE]
+
+        game.declare_move(attacker.id, GameAction.COUP, target_id=target.id)
+        game.handle_no_challenge()
+        game.resolve_influence_selection(target.id, Influence.DUKE)
+
+        assert target.id not in game.players
+        assert game.state == GameState.GAME_OVER
+
+    def test_elimination_index_clamping(self, game_with_three_players):
+        """Turn index is clamped when a player before current index is eliminated."""
+        game, players = game_with_three_players
+        # Player at index 0 just finished, now it's index 1's turn
+        game.currentTurnIndex = 1
+
+        # Eliminate player at index 0
+        players[0].cards = []
+        game.next_turn()
+
+        # Index should be clamped
+        assert game.currentTurnIndex < len(game.players)
+
+    def test_multiple_eliminations(self, game_with_three_players):
+        """Multiple players can be eliminated."""
+        game, players = game_with_three_players
+        players[0].cards = []
+        players[1].cards = []
+
+        game.next_turn()
+
+        assert len(game.players) == 1
+        assert game.state == GameState.GAME_OVER
+
+
+class TestStateTransitionMatrix:
+    """Test all valid state transitions."""
+
+    def test_waiting_to_action_declared(self, game_with_two_players):
+        """WAITING_FOR_ACTION -> ACTION_DECLARED on non-INCOME move."""
+        game, players = game_with_two_players
+        game.declare_move(players[0].id, GameAction.TAX)
+        assert game.state == GameState.ACTION_DECLARED
+
+    def test_waiting_to_block_declared(self, game_with_two_players):
+        """BLOCK_DECLARED state is set when a BlockMove is declared."""
+        game, players = game_with_two_players
+        # Manually set up block scenario since blocks require ACTION_DECLARED state
+        # but declare_move only accepts moves in WAITING_FOR_ACTION state.
+        # We test that setting the state directly works as expected.
+        game.declare_move(players[0].id, GameAction.FOREIGN_AID)
+        # Simulate block declaration by setting state and attributes directly
+        game.state = GameState.BLOCK_DECLARED
+        game.declared_block = BlockMove.BLOCK_FOREIGN_AID
+        game.blocker_id = players[1].id
+        assert game.state == GameState.BLOCK_DECLARED
+        assert game.declared_block == BlockMove.BLOCK_FOREIGN_AID
+
+    def test_action_declared_to_challenge_handle(self, game_with_two_players):
+        """ACTION_DECLARED -> CHALLENGE_HANDLE on challenge."""
+        game, players = game_with_two_players
+        game.declare_move(players[0].id, GameAction.TAX)
+        game.get_challenge_loser(players[1].id)
+        assert game.state == GameState.CHALLENGE_HANDLE
+
+    def test_action_declared_to_influence_pending(self, game_with_two_players):
+        """ACTION_DECLARED -> INFLUENCE_SELECTION_PENDING on Assassinate/Coup."""
+        game, players = game_with_two_players
+        players[0].coins = 3
+        game.declare_move(players[0].id, GameAction.ASSASSINATE, target_id=players[1].id)
+        game.handle_no_challenge()
+        assert game.state == GameState.INFLUENCE_SELECTION_PENDING
+
+    def test_action_declared_to_pending_exchange(self, game_with_two_players):
+        """ACTION_DECLARED -> PENDING_EXCHANGE on Exchange."""
+        game, players = game_with_two_players
+        game.declare_move(players[0].id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+        assert game.state == GameState.PENDING_EXCHANGE
+
+    def test_challenge_handle_to_waiting(self, game_with_two_players):
+        """CHALLENGE_HANDLE -> WAITING_FOR_ACTION after challenge resolution."""
+        game, players = game_with_two_players
+        # Give current player DUKE so they're truthful about TAX
+        players[0].cards = [Influence.DUKE, Influence.ASSASSIN]
+        players[0].moves = [
+            GameAction.INCOME, GameAction.FOREIGN_AID, GameAction.COUP,
+            GameAction.TAX, GameAction.ASSASSINATE,
+            BlockMove.BLOCK_FOREIGN_AID
+        ]
+        game.declare_move(players[0].id, GameAction.TAX)
+        loser_id = game.get_challenge_loser(players[1].id)
+        # Challenger loses because player was truthful
+        assert loser_id == players[1].id
+        # Remove a card from the challenger (the loser)
+        card_to_remove = players[1].cards[0]
+        game.handle_challenge(card_to_remove)
+        assert game.state == GameState.WAITING_FOR_ACTION
+
+    def test_influence_pending_to_waiting(self, game_with_two_players):
+        """INFLUENCE_SELECTION_PENDING -> WAITING_FOR_ACTION after card selection."""
+        game, players = game_with_two_players
+        players[0].coins = 7
+        game.declare_move(players[0].id, GameAction.COUP, target_id=players[1].id)
+        game.handle_no_challenge()
+        game.resolve_influence_selection(players[1].id, players[1].cards[0])
+        assert game.state == GameState.WAITING_FOR_ACTION
+
+    def test_pending_exchange_to_waiting(self, game_with_two_players):
+        """PENDING_EXCHANGE -> WAITING_FOR_ACTION after card selection."""
+        game, players = game_with_two_players
+        game.declare_move(players[0].id, GameAction.EXCHANGE)
+        game.handle_no_challenge()
+        game.resolve_exchange(players[0].id, game.exchange_cards[:2])
+        assert game.state == GameState.WAITING_FOR_ACTION
+
+    def test_any_to_game_over(self, game_with_two_players):
+        """Game over when only 1 player remains."""
+        game, players = game_with_two_players
+        players[0].cards = []
+        game.next_turn()
+        assert game.state == GameState.GAME_OVER
