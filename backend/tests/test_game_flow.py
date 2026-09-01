@@ -8,6 +8,9 @@ from services.Influence import Influence
 from utils.exceptions import SynchronizationError, PlayerInsufficientError
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.fixture
 def game_with_three_players():
     """Create a game with three players."""

@@ -8,6 +8,9 @@ from services.BlockMove import BlockMove
 from utils.exceptions import SynchronizationError, PlayerInsufficientError
 
 
+pytestmark = pytest.mark.unit
+
+
 @pytest.fixture
 def game():
     g = CoupGame()

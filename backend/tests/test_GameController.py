@@ -7,6 +7,9 @@ from controllers.GameController import GameController
 from utils.exceptions import SynchronizationError
 
 
+pytestmark = pytest.mark.unit
+
+
 @pytest.fixture
 def game_controller():
     """Create a fresh GameController with a game instance."""

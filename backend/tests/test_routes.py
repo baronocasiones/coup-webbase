@@ -10,6 +10,9 @@ from controllers.LobbyController import lobby_controller
 from utils.state import game
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.fixture
 def client():
     """Create a test client for FastAPI app."""

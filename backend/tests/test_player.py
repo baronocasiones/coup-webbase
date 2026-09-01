@@ -4,6 +4,9 @@ from services.Player import Player
 from services.GameAction import GameAction
 from services.Influence import Influence
 
+
+pytestmark = pytest.mark.unit
+
 class DummyInfluence:
     def get_actions(self):
         return [GameAction.INCOME]

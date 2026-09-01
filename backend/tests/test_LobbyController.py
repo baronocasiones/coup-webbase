@@ -6,6 +6,9 @@ from controllers.LobbyController import LobbyController
 from utils.exceptions import SynchronizationError, PlayerNotFoundError
 
 
+pytestmark = pytest.mark.unit
+
+
 @pytest.fixture
 def lobby():
     """Create a fresh lobby with a game instance."""
