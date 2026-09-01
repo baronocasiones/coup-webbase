@@ -6,4 +6,4 @@ python-lsp-server
 pylsp-mypy
 pyflakes
 pycodestyle
-
+httpx
