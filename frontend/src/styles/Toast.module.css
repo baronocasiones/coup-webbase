@@ -1,9 +1,115 @@
-refactor: migrate Loader to CSS modules and add Toast component
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: rgba(15, 20, 25, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    color: #E2E8F0;
+    font-size: 0.95rem;
+    font-weight: 500;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    animation: slideInRight 0.3s ease-out forwards;
+    min-width: 280px;
+    max-width: 420px;
+    position: relative;
+}
 
-- Convert Loader from styled-components to CSS modules for better performance
-- Create new Toast notification component with auto-dismiss and animations
-- Add Toast.module.css with dark mode support and 4 variants (success, error, warning, info)
-- Enhance global styles with smooth scrolling and improved typography
-- Update Chatbox, Landing, Lobby, and PlayRoom styles with refined animations
-- Improve visual hierarchy and spacing across UI components
-- Add GPU-accelerated animations and backdrop filters for modern feel
+.closing {
+    animation: slideOutRight 0.3s ease-in forwards;
+}
+
+.icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.message {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.closeButton:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Toast type variants */
+.success {
+    border-color: rgba(76, 175, 80, 0.3);
+}
+
+.success .icon {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4caf50;
+}
+
+.error {
+    border-color: rgba(233, 69, 96, 0.3);
+}
+
+.error .icon {
+    background: rgba(233, 69, 96, 0.15);
+    color: #E94560;
+}
+
+.warning {
+    border-color: rgba(255, 193, 7, 0.3);
+}
+
+.warning .icon {
+    background: rgba(255, 193, 7, 0.15);
+    color: #FFC107;
+}
+
+.info {
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.info .icon {
+    background: rgba(102, 126, 234, 0.15);
+    color: #667EEA;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}

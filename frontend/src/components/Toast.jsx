@@ -21,7 +21,7 @@ import styles from '../styles/Toast.module.css'
  * - duration: auto-dismiss time in ms (0 = manual only, default: 3000)
  * - icon: custom icon (optional)
  */
-function Toast({ id, message, type = 'info', duration = 3000, icon = null }) {
+function Toast({ message, type = 'info', duration = 3000, icon = null }) {
     const [isClosing, setIsClosing] = useState(false)
     const [isVisible, setIsVisible] = useState(true)
 

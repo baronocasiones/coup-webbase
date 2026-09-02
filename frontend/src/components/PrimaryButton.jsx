@@ -1,20 +1,16 @@
-import styles from '../styles/Landing.module.css'
+import styles from '../styles/PrimaryButton.module.css'
 
-function PrimaryButton({ text, width, height, background='#E94560', backgroundColor, onClick, disabled = false }) {
-
+function PrimaryButton({ text, width, height, variant = 'primary', onClick, disabled = false }) {
     return (
-        <button 
-            className={styles.primaryButton} 
-            onClick={onClick} 
+        <button
+            className={`${styles.button} ${styles[variant]}`}
+            onClick={onClick}
             disabled={disabled}
-            style={{ 
-                width: width, 
-                height: height, 
-                background: backgroundColor || background
-            }}>
+            style={{ width, height }}
+        >
             {text}
         </button>
-    );
+    )
 }
 
-export default PrimaryButton;
+export default PrimaryButton

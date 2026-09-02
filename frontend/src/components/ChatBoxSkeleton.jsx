@@ -1,6 +1,6 @@
 import styles from '../styles/Chatbox.module.css'
 
-function ChatBoxSkeleton({ }) {
+function ChatBoxSkeleton() {
     return (
         <>
             <div>

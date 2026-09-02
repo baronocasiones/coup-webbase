@@ -23,18 +23,22 @@ function PlayRoom() {
         payload: null,
     });
     const [isChoosingTarget, setIsChoosingTarget] = useState(false);
+
     const { data: gameState, isLoading: gameStateIsLoading } = useQuery({
         queryKey: ["gameState"],
         queryFn: getGame,
         onError: (error) => {
             console.log(error);
-            navigate("/lobby");
-            if (error.response.state === 404) {
+            if (error.response?.status === 404) {
                 navigate("/");
+            } else {
+                navigate("/lobby");
             }
         },
     });
+
     const players = gameState?.playersState;
+
     const { data: userPlayer, isLoading: userPlayerIsLoading } = useQuery({
         queryKey: ["gameState", userId],
         queryFn: () => getUserPlayer(userId),
@@ -44,11 +48,14 @@ function PlayRoom() {
             }
         },
     });
+
     const currentTurn = gameState?.currentTurn;
+
     const isMyTurn = useMemo(
         () => currentTurn?.id === userId,
         [currentTurn, userId],
     );
+
     const handleAction = useCallback(
         (action) => {
             if (TARGETED_MOVES.includes(action)) {
@@ -67,23 +74,21 @@ function PlayRoom() {
             }
             queryClient.invalidateQueries(["gameState", userId]);
         },
-        [userId, gameWs, broadcastMove, setIsChoosingTarget],
+        [userId, dispatchGameState, queryClient],
     );
 
     useEffect(() => {
-        console.log(stateMachineState)
         const target = stateMachineState?.payload?.target;
         const move = stateMachineState?.payload?.move;
         if (target && move) {
             broadcastMove(gameWs.current, move, target);
         }
-        queryClient.invalidateQueries({ queryKey: ["gameState"]})
+        queryClient.invalidateQueries({ queryKey: ["gameState"] })
     }, [stateMachineState]);
 
     useEffect(() => {
         const previous = document.body.style.backgroundColor;
-        document.body.style.backgroundColor = "#0F1419";
-
+        document.body.style.backgroundColor = "#08080D";
         return () => {
             document.body.style.backgroundColor = previous;
         };
@@ -104,10 +109,8 @@ function PlayRoom() {
             `ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`,
         );
 
-        gameWs.current.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+        gameWs.current.onmessage = () => {
             queryClient.invalidateQueries({ queryKey: ["gameState"] });
-            console.log("Received message:", data);
         };
 
         gameWs.current.onerror = () => {
@@ -137,29 +140,24 @@ function PlayRoom() {
                 <div className={styles.currentTurnContainer}>
                     <label className={styles.turnLabel}>Current Turn</label>
                     <span className={styles.turnName}>
-                        {currentTurn.id === userId ? "It's your" : `${currentTurn.name}'s`}{" "}
+                        {currentTurn?.id === userId ? "It's your" : `${currentTurn?.name ?? 'Unknown'}'s`}{" "}
                         Turn
                     </span>
                 </div>
                 <div className={styles.statsContainer}>
                     <div className={styles.statItem}>
-                        <label className={styles.statLabels}>Round</label>
-                        <span className={styles.statValue}>3</span>
-                    </div>
-                    <div className={styles.statDivider} />
-                    <div className={styles.statItem}>
                         <label className={styles.statLabels}>Players Left</label>
-                        <span className={styles.statValue}>4 / 4</span>
+                        <span className={styles.statValue}>{players?.length ?? 0} / 6</span>
                     </div>
                     <div className={styles.statDivider} />
                     <div className={styles.statItem}>
-                        <label className={styles.statLabels}>Treasury</label>
-                        <span className={styles.statValue}>💰 50</span>
+                        <label className={styles.statLabels}>Cards in Deck</label>
+                        <span className={styles.statValue}>{gameState?.cardsInDeck ?? 0}</span>
                     </div>
                 </div>
                 <PrimaryButton
                     text="Menu"
-                    backgroundColor="rgba(255, 255, 255, 0.08)"
+                    variant="secondary"
                     width="auto"
                 />
             </div>
@@ -167,7 +165,11 @@ function PlayRoom() {
             {/* Main content */}
             <div className={styles.mainContainer}>
                 <div className={styles.gameContainer}>
-                    <Opponents opponents={players} userId={userId} />
+                    <Opponents
+                        opponents={players}
+                        userId={userId}
+                        currentTurnId={currentTurn?.id}
+                    />
                 </div>
 
                 <ChatBox header="Game Log" withSubmission={false} />
@@ -179,26 +181,16 @@ function PlayRoom() {
                 <div className={styles.userInfo}>
                     <div className={styles.userIdentifier}>
                         <div className={styles.userAvatarWrapper}>
-                            <span
-                                className={styles.profilePic}
-                                style={{
-                                    backgroundColor: "#E94560",
-                                    width: "52px",
-                                    height: "52px",
-                                }}
-                            ></span>
+                            <span className={styles.profilePic}></span>
                             <span className={styles.youBadge}>You</span>
                         </div>
                         <div className={styles.userNameBlock}>
                             <h3 className={styles.userName}>{userPlayer.name}</h3>
-                            <span className={styles.userStatus}>● Active</span>
+                            <span className={styles.userStatus}>Active</span>
                         </div>
                     </div>
                     <div className={styles.userCoins}>
-                        <span
-                            className={styles.coinIcon}
-                            style={{ width: "24px", height: "24px" }}
-                        ></span>
+                        <span className={styles.coinIcon}></span>
                         <span className={styles.userCoinValue}>
                             {userPlayer.coins} coins
                         </span>
@@ -211,7 +203,7 @@ function PlayRoom() {
                     <div className={styles.userCardsContainer}>
                         {userPlayer.cards.map((card, index) => (
                             <span key={index} className={styles.userCard}>
-                                <span className={styles.userCardIcon}>🃏</span>
+                                <span className={styles.userCardIcon}>*</span>
                                 <h4 className={styles.userCardName}>{card}</h4>
                             </span>
                         ))}
@@ -224,52 +216,49 @@ function PlayRoom() {
                             <div className={styles.movesRow}>
                                 <PrimaryButton
                                     text="Income"
-                                    backgroundColor="rgba(255,255,255,0.07)"
+                                    variant="secondary"
                                     width="auto"
                                     onClick={isMyTurn ? () => handleAction("INCOME") : undefined}
+                                    disabled={!isMyTurn}
                                 />
                                 <PrimaryButton
                                     text="Foreign Aid"
-                                    backgroundColor="rgba(255,255,255,0.07)"
+                                    variant="secondary"
                                     width="auto"
-                                    onClick={
-                                        isMyTurn ? () => handleAction("FOREIGN AID") : undefined
-                                    }
+                                    onClick={isMyTurn ? () => handleAction("FOREIGN AID") : undefined}
+                                    disabled={!isMyTurn}
                                 />
                                 <PrimaryButton
                                     text="Coup (7)"
                                     width="auto"
                                     onClick={isMyTurn ? () => handleAction("COUP") : undefined}
+                                    disabled={!isMyTurn}
                                 />
                             </div>
                             <div className={styles.movesRow}>
                                 <PrimaryButton
                                     text="Tax"
-                                    backgroundColor="rgba(102,126,234,0.25)"
                                     width="auto"
                                     onClick={isMyTurn ? () => handleAction("TAX") : undefined}
+                                    disabled={!isMyTurn}
                                 />
                                 <PrimaryButton
                                     text="Assassinate"
-                                    backgroundColor="rgba(102,126,234,0.25)"
                                     width="auto"
-                                    onClick={
-                                        isMyTurn ? () => handleAction("ASSASSINATE") : undefined
-                                    }
+                                    onClick={isMyTurn ? () => handleAction("ASSASSINATE") : undefined}
+                                    disabled={!isMyTurn}
                                 />
                                 <PrimaryButton
                                     text="Steal"
-                                    backgroundColor="rgba(102,126,234,0.25)"
                                     width="auto"
                                     onClick={isMyTurn ? () => handleAction("STEAL") : undefined}
+                                    disabled={!isMyTurn}
                                 />
                                 <PrimaryButton
                                     text="Exchange"
-                                    backgroundColor="rgba(102,126,234,0.25)"
                                     width="auto"
-                                    onClick={
-                                        isMyTurn ? () => handleAction("EXCHANGE") : undefined
-                                    }
+                                    onClick={isMyTurn ? () => handleAction("EXCHANGE") : undefined}
+                                    disabled={!isMyTurn}
                                 />
                             </div>
                         </div>

@@ -27,17 +27,18 @@ export function useStateMachine(initialState) {
                     return { gameState: gameStates.challenge, payload };
                 } else if (TARGETED_MOVES.includes(payload.move)) {
                     return { gameState: gameStates.choosing_target, payload };
-                } else if (payload.move === "EXCHAGE") {
+                } else if (payload.move === "EXCHANGE") {
                     return { gameState: gameStates.choose_cards, payload };
                 } else {
                     return state;
                 }
-            case gameStates.choosing_target:
+            case gameStates.choosing_target: {
                 const move = state.payload.move
                 if (payload.target) {
                     return { gameState: gameStates.move_declared, payload: {...payload, move }  }
                 }
                 return state;
+            }
             case gameStates.choose_cards:
                 if (payload.chosenCard){
                     return { gameState: gameStates.perform_action, payload }

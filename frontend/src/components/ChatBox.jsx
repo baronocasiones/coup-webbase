@@ -48,7 +48,7 @@ function ChatBox({ header, withSubmission = true }) {
                 }
             }
 
-            chatWs.onopen = () => {
+            chatWs.current.onopen = () => {
                 console.log('Chat WebSocket connection established')
             }
 

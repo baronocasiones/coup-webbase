@@ -6,32 +6,38 @@ function Opponents({
     userId,
     setIsChoosingTarget,
     isChoosingTarget = false,
-    dispatchGameState
+    dispatchGameState,
+    currentTurnId
 }) {
     const handlePlayerClick = (playerId) => {
         if (isChoosingTarget) {
             setIsChoosingTarget(false);
             dispatchGameState({ type: gameStates.move_declared, payload: { target: playerId } })
-        } else {
-            return;
         }
     };
+
+    const getInitials = (name) => {
+        if (!name) return '?'
+        return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    }
 
     return (
         <div className={styles.playersContainer}>
             {opponents.map(
                 (player) =>
-                    player.id != userId && (
+                    player.id !== userId && (
                         <div
                             key={player.id}
-                            className={styles.player}
+                            className={`${styles.player} ${currentTurnId === player.id ? styles.playerActive : ''}`}
                             onClick={() => handlePlayerClick(player.id)}
                         >
                             <div className={styles.avatarWrapper}>
-                                <span className={styles.profilePic}></span>
+                                <span className={styles.profilePic}>
+                                    {getInitials(player.name)}
+                                </span>
                                 <span className={styles.onlineIndicator}></span>
                             </div>
-                            <span className={styles.playerName}>{player.name}</span>{" "}
+                            <span className={styles.playerName}>{player.name}</span>
                             <div className={styles.coins}>
                                 <span className={styles.coinIcon}></span>
                                 <span className={styles.coinValue}>{player.coins}</span>

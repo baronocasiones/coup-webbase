@@ -22,34 +22,30 @@ function Landing() {
         sessionStorage.clear()
     }, [])
 
-
-
     return (
-        <>
-            <h1>
-                Coup
-            </h1>
-            <div className={styles.loginContainer}>
-                <h1>Welcome To Coup</h1>
-                <form className={styles.loginForm} onSubmit={(e) => {
-                    e.preventDefault()
-                    if (username.current.value.trim()) {
-                        addPlayer(username.current.value)
-                    }
-                }}>
+        <div className={styles.loginContainer}>
+            <h1 className={styles.title}>Coup</h1>
+            <p className={styles.subtitle}>The Game of Deception</p>
+            <form className={styles.loginForm} onSubmit={(e) => {
+                e.preventDefault()
+                if (username.current.value.trim()) {
+                    addPlayer(username.current.value)
+                }
+            }}>
+                <div className={styles.formGroup}>
+                    <label className={styles.label}>Your Name</label>
                     <input
+                        className={styles.input}
                         type="text"
-                        placeholder="Enter your username"
+                        placeholder="Enter your name to join"
                         ref={username}
                     />
-                    <PrimaryButton
-                        styles={styles.PrimaryButton}
-                        text='Continue To Game'
-                    />
-                </form>
-            </div>
-        </>
-    );
+                </div>
+                <PrimaryButton text="Join Game" width="100%" />
+            </form>
+            <p className={styles.footer}>2-6 players &middot; Bluff &middot; Betray &middot; Survive</p>
+        </div>
+    )
 }
 
 export default Landing
