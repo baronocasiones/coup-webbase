@@ -139,6 +139,17 @@
     box-shadow: var(--shadow-glow-strong, 0 0 30px rgba(201, 168, 76, 0.25));
 }
 
+.playerTargetable {
+    cursor: pointer;
+    border-color: rgba(166, 61, 64, 0.3);
+}
+
+.playerTargetable:hover {
+    border-color: var(--danger, #A63D40);
+    box-shadow: 0 0 20px rgba(166, 61, 64, 0.2);
+    transform: translateY(-2px);
+}
+
 .avatarWrapper {
     position: relative;
     display: inline-block;
@@ -216,6 +227,17 @@
 }
 
 /* ── Move preview ────────────────────────────────────────── */
+.modalBackdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 13, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: opacity 0.2s ease;
+}
+
 .movePreview {
     display: flex;
     flex-direction: column;
@@ -224,11 +246,6 @@
     background: var(--bg-elevated, #16161F);
     border-radius: var(--radius-lg, 16px);
     border: 1px solid rgba(201, 168, 76, 0.15);
-    position: fixed;
-    z-index: 1000;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
     width: 90%;
     max-width: 500px;
     max-height: 80vh;
@@ -240,11 +257,11 @@
 @keyframes modalSlideIn {
     from {
         opacity: 0;
-        transform: translate(-50%, -52%);
+        transform: translateY(12px) scale(0.98);
     }
     to {
         opacity: 1;
-        transform: translate(-50%, -50%);
+        transform: translateY(0) scale(1);
     }
 }
 
@@ -503,4 +520,298 @@
     gap: var(--space-3, 12px);
     justify-content: center;
     width: 100%;
+}
+
+/* ── Game Status Banner ──────────────────────────────────── */
+.gameStatus {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px) var(--space-5, 20px);
+    background: var(--bg-elevated, #16161F);
+    border: 1px solid rgba(201, 168, 76, 0.1);
+    border-radius: var(--radius-md, 10px);
+    animation: fadeIn 0.3s var(--ease-out, ease-out);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.statusBadge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: var(--radius-full, 9999px);
+    flex-shrink: 0;
+}
+
+.badgegold {
+    color: var(--gold, #C9A84C);
+    background: rgba(201, 168, 76, 0.12);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+}
+
+.badgeinfo {
+    color: var(--info, #6B7FA3);
+    background: rgba(107, 127, 163, 0.12);
+    border: 1px solid rgba(107, 127, 163, 0.2);
+}
+
+.badgedanger {
+    color: var(--danger, #A63D40);
+    background: rgba(166, 61, 64, 0.12);
+    border: 1px solid rgba(166, 61, 64, 0.2);
+}
+
+.badgesuccess {
+    color: var(--success, #5A8F5C);
+    background: rgba(90, 143, 92, 0.12);
+    border: 1px solid rgba(90, 143, 92, 0.2);
+}
+
+.statusMessage {
+    font-size: 13px;
+    color: var(--text-secondary, #A09888);
+    flex: 1;
+}
+
+.challengeResult {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--danger, #A63D40);
+}
+
+/* ── Challenge Panel ─────────────────────────────────────── */
+.challengePanel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-4, 16px);
+    background: var(--bg-elevated, #16161F);
+    border: 1px solid rgba(166, 61, 64, 0.2);
+    border-radius: var(--radius-md, 10px);
+    animation: fadeIn 0.3s var(--ease-out, ease-out);
+}
+
+.challengeLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #F5F0E8);
+}
+
+.challengeActions {
+    display: flex;
+    gap: var(--space-3, 12px);
+}
+
+/* ── Exchange Modal ──────────────────────────────────────── */
+.exchangeOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 13, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.exchangeModal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5, 20px);
+    padding: var(--space-7, 28px);
+    background: var(--bg-elevated, #16161F);
+    border: 1px solid rgba(201, 168, 76, 0.15);
+    border-radius: var(--radius-lg, 16px);
+    box-shadow: var(--shadow-xl, 0 16px 48px rgba(0, 0, 0, 0.6));
+    width: 90%;
+    max-width: 520px;
+    animation: modalSlideIn 0.3s var(--ease-out, ease-out) forwards;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.exchangeHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3, 12px);
+}
+
+.exchangeTitle {
+    margin: 0;
+    font-family: var(--font-heading, 'Playfair Display', serif);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary, #F5F0E8);
+    text-align: center;
+}
+
+.exchangeDesc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary, #A09888);
+    text-align: center;
+    line-height: 1.5;
+}
+
+.exchangeCards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3, 12px);
+    justify-content: center;
+}
+
+.exchangeCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: var(--space-4, 16px);
+    width: 100px;
+    background: var(--bg-surface, #1C1C28);
+    border: 2px solid rgba(160, 152, 136, 0.15);
+    border-radius: var(--radius-md, 10px);
+    cursor: pointer;
+    transition: all var(--duration-normal, 250ms) var(--ease-out, ease);
+    color: var(--text-primary, #F5F0E8);
+}
+
+.exchangeCard:hover:not(:disabled) {
+    border-color: var(--gold, #C9A84C);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow, 0 0 20px rgba(201, 168, 76, 0.15));
+}
+
+.exchangeCardSelected {
+    border-color: var(--gold, #C9A84C) !important;
+    background: rgba(201, 168, 76, 0.08);
+    box-shadow: var(--shadow-glow-strong, 0 0 30px rgba(201, 168, 76, 0.25));
+}
+
+.exchangeCard:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.exchangeCardIcon {
+    font-size: 1.5rem;
+}
+
+.exchangeCardName {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary, #A09888);
+}
+
+.exchangeFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4, 16px);
+}
+
+.exchangeCount {
+    font-size: 12px;
+    color: var(--text-muted, #6B6358);
+}
+
+/* ── Game Over ───────────────────────────────────────────── */
+.gameOverOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 13, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.gameOverModal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-6, 24px);
+    padding: var(--space-10, 40px);
+    background: var(--bg-elevated, #16161F);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: var(--radius-xl, 24px);
+    box-shadow: var(--shadow-xl, 0 16px 48px rgba(0, 0, 0, 0.6));
+    width: 90%;
+    max-width: 400px;
+    animation: modalSlideIn 0.5s var(--ease-out, ease-out) forwards;
+}
+
+.gameOverTitle {
+    margin: 0;
+    font-family: var(--font-heading, 'Playfair Display', serif);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gold, #C9A84C);
+    text-align: center;
+}
+
+.gameOverWinner {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-secondary, #A09888);
+    text-align: center;
+}
+
+.gameOverPlayers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+    width: 100%;
+}
+
+.gameOverPlayer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    background: var(--bg-surface, #1C1C28);
+    border-radius: var(--radius-md, 10px);
+    border: 1px solid rgba(160, 152, 136, 0.1);
+}
+
+.gameOverPlayerSelf {
+    border-color: rgba(201, 168, 76, 0.2);
+    background: rgba(201, 168, 76, 0.05);
+}
+
+.gameOverRank {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold, #C9A84C);
+    min-width: 32px;
+}
+
+.gameOverName {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #F5F0E8);
+    flex: 1;
+}
+
+.gameOverPlayerSelf .gameOverName {
+    color: var(--gold, #C9A84C);
 }

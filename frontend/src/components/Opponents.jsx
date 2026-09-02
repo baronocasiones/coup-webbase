@@ -1,18 +1,17 @@
 import styles from "./../styles/PlayRoom.module.css";
-import { gameStates } from "../hooks/useStateMachine"
 
 function Opponents({
     opponents,
     userId,
     setIsChoosingTarget,
     isChoosingTarget = false,
-    dispatchGameState,
-    currentTurnId
+    currentTurnId,
+    onPlayerClick
 }) {
     const handlePlayerClick = (playerId) => {
-        if (isChoosingTarget) {
+        if (isChoosingTarget && onPlayerClick) {
             setIsChoosingTarget(false);
-            dispatchGameState({ type: gameStates.move_declared, payload: { target: playerId } })
+            onPlayerClick(playerId);
         }
     };
 
@@ -28,7 +27,7 @@ function Opponents({
                     player.id !== userId && (
                         <div
                             key={player.id}
-                            className={`${styles.player} ${currentTurnId === player.id ? styles.playerActive : ''}`}
+                            className={`${styles.player} ${currentTurnId === player.id ? styles.playerActive : ''} ${isChoosingTarget ? styles.playerTargetable : ''}`}
                             onClick={() => handlePlayerClick(player.id)}
                         >
                             <div className={styles.avatarWrapper}>
