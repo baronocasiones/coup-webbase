@@ -6,9 +6,12 @@ Coup board game — React 19 + FastAPI. Real-time multiplayer with WebSockets.
 
 ### Frontend (`frontend/`)
 ```bash
-npm run dev        # Vite dev server (localhost:5173)
-npm run build      # Production build
-npm run lint       # ESLint
+npm run dev          # Vite dev server (localhost:5173)
+npm run build        # Production build
+npm run lint         # ESLint
+npm test             # Run all frontend tests (vitest)
+npm run test:watch   # Watch mode
+npm run test:coverage # With coverage report
 ```
 
 ### Backend (`backend/`)
@@ -40,6 +43,7 @@ mypy backend/                     # Type check
 - Forced coup: players with 10+ coins MUST declare COUP (`COUP_THRESHOLD` in `utils/globals.py`)
 - Block resolution: blocks require `ACTION_DECLARED` state; can be challenged; unchallenged blocks cancel the action
 - Chat: WebSocket handler broadcasts only — REST endpoint (`POST /chat`) handles persistence
+- Frontend tests: vitest + @testing-library/react; mock axios via `vi.mock('../../axios')`; mock services in page integration tests; use `renderWithProviders()` from `test-utils.jsx` for QueryClient + Router
 
 ## Structure
 
@@ -57,11 +61,19 @@ mypy backend/                     # Type check
 - `backend/tests/test_e2e_game.py` — End-to-end game flow tests via HTTP + service layer
 - `backend/tests/test_new_features.py` — Tests for forced coup, block resolution, and chat
 - `frontend/src/pages/` — `Landing.jsx`, `Lobby.jsx`, `PlayRoom.jsx`
-- `frontend/src/components/` — `ChatBox`, `Opponents`, `Modal`, `Toast`, etc.
+- `frontend/src/components/` — `ChatBox`, `ChatBoxSkeleton`, `Opponents`, `Modal`, `Toast`, `Loader`, `PrimaryButton`, `GameStatus`, `ChallengePanel`, `ExchangeModal`, `InfluencePicker`, `GameOver`
 - `frontend/src/hooks/` — Custom hooks (`useStateMachine`)
 - `frontend/src/styles/` — CSS Modules (all `.module.css` files live here, not co-located with components)
 - `frontend/src/services/` — API client modules (`player.js`, `chat.js`, `game.js`)
-- `frontend/src/utils/` — Utilities (`gameActions.js` for `broadcastMove`)
+- `frontend/src/utils/` — Utilities (`gameActions.js` for broadcast functions + action constants)
+- `frontend/src/__tests__/` — Frontend test suite (vitest + @testing-library/react)
+  - `__tests__/test-utils.jsx` — Shared `renderWithProviders()` wrapper (QueryClient + MemoryRouter)
+  - `__tests__/services/` — Unit tests for `player.js`, `chat.js`, `game.js`
+  - `__tests__/utils/` — Unit tests for `gameActions.js`
+  - `__tests__/hooks/` — Unit tests for `useStateMachine.js`
+  - `__tests__/components/` — Unit tests for all 12 components
+  - `__tests__/pages/` — Integration tests for `Landing`, `Lobby`, `PlayRoom`
+- `frontend/src/setupTests.js` — Test setup: jsdom mocks (sessionStorage, WebSocket, window.location)
 
 ## Conventions
 
