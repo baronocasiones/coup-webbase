@@ -58,8 +58,10 @@ function GameStatus({ gameState, userId }) {
 
     if (!message) return null
 
+    const isPulsing = state === 'ACTION_DECLARED' || state === 'BLOCK_DECLARED' || state === 'CHALLENGE_HANDLE'
+
     return (
-        <div className={styles.gameStatus}>
+        <div className={`${styles.gameStatus} ${isPulsing ? styles.statusPulse : ''}`}>
             {badge && (
                 <span className={`${styles.statusBadge} ${styles[`badge${badge.color}`]}`}>
                     {badge.label}

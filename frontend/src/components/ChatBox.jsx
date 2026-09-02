@@ -5,6 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getChatMessages, addChatMessage } from '../services/chat'
 import ChatBoxSkeleton from './ChatBoxSkeleton'
 
+/** System messages from game events (no userId or special sender) */
+function isSystemMessage(msg) {
+    return !msg.userId || msg.sender_username === 'System'
+}
+
 function ChatBox({ header, withSubmission = true }) {
     const queryClient = useQueryClient()
     const inputRef = useRef()
@@ -28,20 +33,18 @@ function ChatBox({ header, withSubmission = true }) {
 
     useEffect(() => {
         if (!chatContainerRef.current) return
-
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }, [messageDatas])
 
     useEffect(() => {
         const wsHost = import.meta.env.WS_HOST || 'localhost';
         const wsPort = import.meta.env.WS_PORT || '8000';
-        if(userId && withSubmission){
+        if (userId && withSubmission) {
             chatWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/chat?user_id=${userId}`)
 
             chatWs.current.onmessage = (event) => {
                 try {
                     const chats = JSON.parse(event.data)
-
                     queryClient.setQueryData(['chatMessages'], chats)
                 } catch (error) {
                     console.error('Error parsing WebSocket message:', error)
@@ -68,46 +71,57 @@ function ChatBox({ header, withSubmission = true }) {
         }
     }, [userId, queryClient])
 
-
     return (
         <div className={styles.chatBoxContainer}>
             <h2>{header}</h2>
             <div className={styles.chats} ref={chatContainerRef}>
                 {isLoading && <ChatBoxSkeleton />}
                 {!isLoading && messageDatas.length === 0 && (
-                    <div className={styles.message}>No messages yet.</div>
+                    <div className={styles.emptyChat}>No messages yet.</div>
                 )}
                 {!isLoading && messageDatas.length > 0 && (
-                    messageDatas.map((messageData, index) => (
-                        <div key={index} style={userId == messageData.userId ? { textAlign: 'right' } : null}>
-                            <div className={styles.senderName}>{messageData.sender_username}</div>
-                            <div className={styles.message}>{messageData.message}</div>
-                        </div>
-                    )))
-                }
+                    messageDatas.map((messageData, index) => {
+                        const isSystem = isSystemMessage(messageData)
+                        const isOwn = userId === messageData.userId
+
+                        if (isSystem) {
+                            return (
+                                <div key={index} className={styles.systemMessage}>
+                                    <span className={styles.systemIcon}>⚡</span>
+                                    <span className={styles.systemText}>{messageData.message}</span>
+                                </div>
+                            )
+                        }
+
+                        return (
+                            <div key={index} className={`${styles.messageGroup} ${isOwn ? styles.messageGroupOwn : ''}`}>
+                                <div className={styles.senderName}>{messageData.sender_username}</div>
+                                <div className={styles.message}>{messageData.message}</div>
+                            </div>
+                        )
+                    })
+                )}
             </div>
             {withSubmission && (
                 <form className={styles.chatInputContainer} onSubmit={(e) => {
                     e.preventDefault()
-                    if (!inputRef.current.value){
-                        return
-                    }
+                    if (!inputRef.current.value) return
                     const message = inputRef.current.value
-                    const userId = sessionStorage.getItem('userId')
+                    const uid = sessionStorage.getItem('userId')
                     const username = sessionStorage.getItem('username')
                     if (!chatWs.current) {
                         console.error('Chat WebSocket is not connected.')
                         return
                     }
-                    sendChatMutation({ userId, username, message, chatWs: chatWs.current })
+                    sendChatMutation({ userId: uid, username, message, chatWs: chatWs.current })
                     inputRef.current.value = ''
                 }}>
-                    <input ref={inputRef} className={styles.chatInput} type="text" placeholder="Type a message..." style={{width:'auto'}}/>
-                    <PrimaryButton text='Send' />
+                    <input ref={inputRef} className={styles.chatInput} type="text" placeholder="Type a message..." />
+                    <PrimaryButton text="Send" />
                 </form>
             )}
         </div>
     )
 }
 
-export default ChatBox;
+export default ChatBox

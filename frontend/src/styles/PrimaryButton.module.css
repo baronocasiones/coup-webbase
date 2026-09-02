@@ -70,3 +70,17 @@
     cursor: not-allowed;
     transform: none;
 }
+
+/* Forced Coup pulse */
+.primaryPulse {
+    animation: forcedCoupPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes forcedCoupPulse {
+    0%, 100% {
+        box-shadow: 0 4px 16px rgba(201, 168, 76, 0.25);
+    }
+    50% {
+        box-shadow: 0 4px 24px rgba(201, 168, 76, 0.45);
+    }
+}
