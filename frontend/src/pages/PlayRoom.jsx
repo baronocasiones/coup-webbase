@@ -318,6 +318,7 @@ function PlayRoom() {
                                     <PrimaryButton
                                         text="Coup (7)"
                                         onClick={() => handleAction("COUP")}
+                                        pulse
                                     />
                                 ) : (
                                     <>

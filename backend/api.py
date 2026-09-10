@@ -1,5 +1,6 @@
 import logging
 import json
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +24,14 @@ logger = logging.getLogger(__name__)
 game_manager = ConnectionManager()
 chat_manager = ConnectionManager()
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    lobby_controller.set_game(game)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,19 +45,58 @@ app.include_router(chats_router)
 app.include_router(game_router)
 
 
-@app.on_event('startup')
-def startup_event():
-    # BUG PRONE
-    # might need to change when lobby is scaled up to multiple games
-    lobby_controller.set_game(game)
-    return
-
-
 @app.get('/start-game')
 def start_game():
     game_controller.set_game(game)
     game_controller.set_game_manager(game_manager)
     lobby_controller.start_game()
+
+
+@app.get('/test/debug')
+def debug_game():
+    """Debug endpoint — shows full game state. Only for testing."""
+    players = {str(k): v.name for k, v in game.players.items()}
+    return {
+        "game_id": str(game.game_id),
+        "state": game.state.value,
+        "players": players,
+        "player_count": len(game.players),
+        "lobby_game_id": str(lobby_controller.game.game_id) if lobby_controller.game else None,
+        "gc_game_id": str(game_controller.game.game_id) if game_controller.game else None,
+    }
+
+
+@app.post('/test/reset')
+def reset_game():
+    """Reset game state. Only for testing — must match conftest.py exactly."""
+    from services.Card import Card
+    from services.GameState import GameState
+
+    # Reset the global game singleton
+    game.court_deck = Card()
+    game.players.clear()
+    game.chats.clear()
+    game.state = GameState.WAITING_FOR_PLAYERS
+    game.declared_move = None
+    game.declared_block = None
+    game.blocker_id = None
+    game.move_target_id = None
+    game.challenge_loser = None
+    game.pending_influence_target = None
+    game.exchange_cards = None
+    game.currentTurnIndex = 0
+    game.challenger_id = None
+
+    # Re-wire controllers
+    lobby_controller.set_game(game)
+    game_controller.game = None
+    game_controller.game_manager = None
+
+    # Clear WebSocket connection managers
+    game_manager.active_connections.clear()
+    chat_manager.active_connections.clear()
+
+    return {"status": "ok"}
 
 
 @app.websocket('/ws/lobby')

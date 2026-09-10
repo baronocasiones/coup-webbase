@@ -12,6 +12,9 @@ npm run lint         # ESLint
 npm test             # Run all frontend tests (vitest)
 npm run test:watch   # Watch mode
 npm run test:coverage # With coverage report
+npx playwright test  # Run E2E tests (requires backend running)
+npx playwright test --debug  # Step through with inspector
+npx playwright test flows/gameplay-basic.spec.ts  # Single flow
 ```
 
 ### Backend (`backend/`)
@@ -35,7 +38,7 @@ mypy backend/                     # Type check
 - Backend has no `pyproject.toml` or `setup.py` — not an installable package
 - Global game state is a singleton in `backend/utils/state.py` (`game = CoupGame()`)
 - Frontend axios base URL: `import.meta.env.API_URL || 'http://localhost:8000'` (`frontend/src/axios.js`)
-- Backend uses deprecated `@app.on_event('startup')` (see `api.py`)
+- Backend uses modern FastAPI `lifespan` context manager (see `api.py`)
 - CSS Modules required for all frontend component styles — files live in `frontend/src/styles/*.module.css`, not alongside components
 - Frontend routes are lazy-loaded in `main.jsx` with `Suspense`
 - CI runs both `pytest -m unit` and `pytest -m integration` with coverage — frontend lint is not in CI
@@ -61,8 +64,7 @@ mypy backend/                     # Type check
 - `backend/tests/test_e2e_game.py` — End-to-end game flow tests via HTTP + service layer
 - `backend/tests/test_new_features.py` — Tests for forced coup, block resolution, and chat
 - `frontend/src/pages/` — `Landing.jsx`, `Lobby.jsx`, `PlayRoom.jsx`
-- `frontend/src/components/` — `ChatBox`, `ChatBoxSkeleton`, `Opponents`, `Modal`, `Toast`, `Loader`, `PrimaryButton`, `GameStatus`, `ChallengePanel`, `ExchangeModal`, `InfluencePicker`, `GameOver`
-- `frontend/src/hooks/` — Custom hooks (`useStateMachine`)
+- `frontend/src/components/` — `ChatBox`, `ChatBoxSkeleton`, `Opponents`, `Modal`, `Loader`, `PrimaryButton`, `GameStatus`, `ChallengePanel`, `ExchangeModal`, `InfluencePicker`, `GameOver`
 - `frontend/src/styles/` — CSS Modules (all `.module.css` files live here, not co-located with components)
 - `frontend/src/services/` — API client modules (`player.js`, `chat.js`, `game.js`)
 - `frontend/src/utils/` — Utilities (`gameActions.js` for broadcast functions + action constants)
@@ -74,6 +76,13 @@ mypy backend/                     # Type check
   - `__tests__/components/` — Unit tests for all 12 components
   - `__tests__/pages/` — Integration tests for `Landing`, `Lobby`, `PlayRoom`
 - `frontend/src/setupTests.js` — Test setup: jsdom mocks (sessionStorage, WebSocket, window.location)
+- `frontend/tests/e2e/` — Playwright E2E tests (TypeScript)
+  - `tests/e2e/flows/` — Test files grouped by user journey (landing, lobby, gameplay-*, chat, multiplayer, edge-cases)
+  - `tests/e2e/fixtures/` — Extended test fixtures (game state reset)
+  - `tests/e2e/pages/` — Page Object Models (LandingPage, LobbyPage, PlayRoomPage)
+  - `tests/e2e/utils/` — Helpers (api-helpers, ws-helpers, game-flow)
+- `frontend/playwright.config.ts` — Playwright config (webServer, projects, timeouts)
+- `.github/workflows/e2e.yml` — E2E CI workflow (Playwright, triggered on push/PR to main)
 
 ## Conventions
 
@@ -89,3 +98,32 @@ mypy backend/                     # Type check
 
 - Python 3.12 (see `backend/.python-version`)
 - Node 22 (see `frontend/.node-version`)
+
+## Session History
+
+### 2026-09-03: Architecture Cleanup & Refactoring
+- **Implemented:**
+  - Removed dead backend code (`BaseRemoveInfluence` ABC, `lobby_manager` in LobbyController).
+  - Removed dead frontend code (`useStateMachine` hook, `Toast` component, associated tests and styles).
+  - Replaced deprecated FastAPI `@app.on_event('startup')` with modern `lifespan` context manager in `api.py`.
+  - Cleaned up dead/unused pip dependencies (`gevent`, `greenlet`, `zope.event`, `zope.interface`, `websocket`, `uuid` PyPI package) from `requirements.txt`.
+  - Fixed type hints in `GameController.py` and removed stale TODOs in `CoupGame.py`.
+  - Deleted obsolete `TEST_VERIFICATION.txt`.
+  - Updated architecture, backend, and frontend documentation in `docs/`.
+- **Conventions & Patterns Established:**
+  - Strict dead-code removal protocol verified against architecture docs.
+  - Modern FastAPI `lifespan` context manager adopted for application initialization.
+
+### 2026-09-10: E2E Testing — Root Cause Fixes & WS Broadcast
+- **Implemented:**
+  - Fixed E2E tests: Lobby's `beforeunload` handler was deleting players during `page.goto()` navigation. Added `page.route()` interception in `safeNavigateToPlayroom()` to abort `DELETE /player` requests.
+  - Fixed `/user-player` 500 error: Added null-check for `player` after `game_controller.get_player_by_id()` returns `None`.
+  - Added WebSocket broadcast to game WS handler: After each action (`declare_move`, `block`, `no_challenge`, `exchange_selection`, `influence_selection`), the handler now broadcasts the updated `GameStateModel` to all OTHER connected players.
+  - Fixed `safeNavigateToPlayroom()` reload: Changed `waitUntil: 'networkidle'` to `waitUntil: 'load'` to avoid timeout on pages with WebSocket connections.
+  - Diagnostic investigation: Traced player disappearance to `Lobby.jsx` `beforeunload` handler calling `removePlayerMutation()` on page navigation.
+- **Conventions & Patterns Established:**
+  - E2E navigation must intercept `DELETE /player` to prevent Lobby's `beforeunload` cleanup from removing players.
+  - Use `waitUntil: 'load'` (not `'networkidle'`) for pages with WebSocket connections.
+  - Game WS broadcasts go to all OTHER players; sender must poll REST API for own state (known `ConnectionManager.broadcast()` design limitation).
+  - 27/28 E2E tests passing; BL-01 (block test) depends on broadcast reaching opponent's page.
+

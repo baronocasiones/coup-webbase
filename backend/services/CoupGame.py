@@ -112,7 +112,6 @@ class CoupGame:
             updated_players_state: Optional[list[Player]] = None,
             update_player: Optional[Player] = None
     ) -> None:
-        # TODO: need to separate update_player and updated_players_state into two different methods
         """
         Update the state of players in the game.
         If given a list of player states, it replaces the entire players list.
@@ -140,7 +139,6 @@ class CoupGame:
         Raises:
             SynchronizationError: If the game has already started.
         """
-        # TODO: need to raise exception instead of returning None
         if self.state != GameState.WAITING_FOR_PLAYERS:
             raise SynchronizationError("Cannot join a when game its already running.")
 

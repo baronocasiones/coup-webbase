@@ -26,6 +26,9 @@ def get_user_player(user_id: UUID):
     try:
         player = game_controller.get_player_by_id(user_id)
     except AttributeError:
+        raise HTTPException(status_code=404, detail="Game not started or player not found")
+
+    if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
     return UserPlayerModel(
@@ -68,6 +71,9 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                             target_id=UUID(target) if target else None,
                             blocker_id=UUID(payload.get("blockerId")) if payload.get("blockerId") else None
                     )
+                    # Broadcast updated game state to all OTHER players
+                    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+                    await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
                     await websocket.send_json({"error": str(e)})
 
@@ -83,6 +89,9 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                         move=block_move,
                         blocker_id=user_id,
                     )
+                    # Broadcast updated game state to all OTHER players
+                    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+                    await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
                     await websocket.send_json({"error": str(e)})
 
@@ -91,6 +100,9 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     chosen_card_names = payload.get("cards", [])
                     chosen_cards = [Influence[name] for name in chosen_card_names]
                     game_controller.game.resolve_exchange(user_id, chosen_cards)
+                    # Broadcast updated game state to all OTHER players
+                    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+                    await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
                     await websocket.send_json({"error": str(e)})
 
@@ -99,6 +111,9 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     card_name = payload.get("card")
                     card_to_remove = Influence[card_name]
                     game_controller.game.resolve_influence_selection(user_id, card_to_remove)
+                    # Broadcast updated game state to all OTHER players
+                    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+                    await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
                     await websocket.send_json({"error": str(e)})
 
@@ -116,6 +131,9 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
             elif action == "no_challenge":
                 try:
                     game_controller.game.handle_no_challenge()
+                    # Broadcast updated game state to all OTHER players
+                    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+                    await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
                     await websocket.send_json({"error": str(e)})
 

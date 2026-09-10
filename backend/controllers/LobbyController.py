@@ -1,7 +1,6 @@
 from uuid import UUID
 from utils.exceptions import PlayerNotFoundError, SynchronizationError
 from services.Player import Player
-from services.ConnectionManager import ConnectionManager
 from typing import Optional
 
 from typing import TYPE_CHECKING
@@ -12,7 +11,6 @@ if TYPE_CHECKING:
 class LobbyController:
     def __init__(self) -> None:
         self.game: Optional['CoupGame'] = None
-        self.lobby_manager: Optional[ConnectionManager] = None
 
     def remove_player(self, player_id: UUID) -> None:
         if(not self.game):
@@ -67,9 +65,6 @@ class LobbyController:
 
     def set_game(self, game: 'CoupGame') -> None:
         self.game = game
-
-    def set_lobby_manager(self, lobby_manager: ConnectionManager):
-        self.lobby_manager = lobby_manager
 
     def start_game(self) -> None:
         if(not self.game):

@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from services.ConnectionManager import ConnectionManager
 from models.PlayerModel import PlayerModel
 
@@ -9,8 +9,8 @@ if TYPE_CHECKING:
 
 class GameController:
     def __init__(self):
-        self.game: 'CoupGame' = None
-        self.game_manager: ConnectionManager = None
+        self.game: Optional['CoupGame'] = None
+        self.game_manager: Optional[ConnectionManager] = None
 
     def set_game(self, game: 'CoupGame'):
         self.game = game
