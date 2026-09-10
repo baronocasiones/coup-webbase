@@ -56,16 +56,24 @@ export async function installWsTracker(page: Page): Promise<void> {
 
 /**
  * Wait for the game WebSocket to be connected.
- * Uses a simple fixed wait — the WS connects to localhost and should
- * be ready within 1-2 seconds after the page header is visible.
+ * Uses the WS tracker installed by installWsTracker to verify the connection
+ * is actually open before proceeding.
  */
 export async function waitForWsConnected(
   _page: Page,
   _urlSubstring = '/ws/game',
   _timeout = 15000,
 ): Promise<void> {
-  // WS to localhost connects in < 100ms. Give it 2 seconds to be safe.
-  await _page.waitForTimeout(2000);
+  await _page.waitForFunction(
+    ({ urlSubstring }) => {
+      const instances = (window as any).__wsInstances || [];
+      return instances.some(
+        (e: any) => e.url.includes(urlSubstring) && e.connected
+      );
+    },
+    { urlSubstring: _urlSubstring },
+    { timeout: _timeout }
+  );
 }
 
 /**

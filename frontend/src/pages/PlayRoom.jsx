@@ -105,6 +105,7 @@ function PlayRoom() {
                 return
             }
             broadcastMove(gameWs.current, action)
+            queryClient.invalidateQueries(["gameState"])
             queryClient.invalidateQueries(["gameState", userId])
         },
         [userId, queryClient],
@@ -116,6 +117,7 @@ function PlayRoom() {
             if (pendingAction) {
                 broadcastMove(gameWs.current, pendingAction, targetId)
                 setPendingAction(null)
+                queryClient.invalidateQueries(["gameState"])
                 queryClient.invalidateQueries(["gameState", userId])
             }
         },
@@ -124,26 +126,31 @@ function PlayRoom() {
 
     const handleChallenge = useCallback(() => {
         broadcastChallenge(gameWs.current, userId)
+        queryClient.invalidateQueries(["gameState"])
         queryClient.invalidateQueries(["gameState", userId])
     }, [userId, queryClient]);
 
     const handleNoChallenge = useCallback(() => {
         broadcastNoChallenge(gameWs.current)
+        queryClient.invalidateQueries(["gameState"])
         queryClient.invalidateQueries(["gameState", userId])
     }, [userId, queryClient]);
 
     const handleBlock = useCallback((blockMove) => {
         broadcastBlock(gameWs.current, blockMove)
+        queryClient.invalidateQueries(["gameState"])
         queryClient.invalidateQueries(["gameState", userId])
     }, [userId, queryClient]);
 
     const handleExchangeSelect = useCallback((cards) => {
         broadcastExchangeSelection(gameWs.current, cards)
+        queryClient.invalidateQueries(["gameState"])
         queryClient.invalidateQueries(["gameState", userId])
     }, [userId, queryClient]);
 
     const handleInfluenceSelect = useCallback((card) => {
         broadcastInfluenceSelection(gameWs.current, card)
+        queryClient.invalidateQueries(["gameState"])
         queryClient.invalidateQueries(["gameState", userId])
     }, [userId, queryClient]);
 
