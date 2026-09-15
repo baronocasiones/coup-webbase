@@ -18,6 +18,7 @@ import {
     broadcastNoChallenge,
     broadcastExchangeSelection,
     broadcastInfluenceSelection,
+    broadcastChallengeSelection,
     BLOCKABLE_ACTIONS,
 } from "../utils/gameActions.js";
 import Opponents from "../components/Opponents.jsx";
@@ -154,6 +155,12 @@ function PlayRoom() {
         queryClient.invalidateQueries(["gameState", userId])
     }, [userId, queryClient]);
 
+    const handleChallengeSelect = useCallback((card) => {
+        broadcastChallengeSelection(gameWs.current, card)
+        queryClient.invalidateQueries(["gameState"])
+        queryClient.invalidateQueries(["gameState", userId])
+    }, [userId, queryClient]);
+
     // Set body background
     useEffect(() => {
         const previous = document.body.style.backgroundColor;
@@ -184,6 +191,7 @@ function PlayRoom() {
                 if (data.action === "challenge_result") {
                     // Challenge result received — refresh game state
                     queryClient.invalidateQueries({ queryKey: ["gameState"] });
+                    queryClient.invalidateQueries({ queryKey: ["gameState", userId] });
                 } else if (data.error) {
                     console.error("Game WS error:", data.error);
                 } else {
@@ -222,7 +230,8 @@ function PlayRoom() {
 
     const gameStateValue = gameState?.state
     const showExchangeModal = gameStateValue === "PENDING_EXCHANGE" && isMyTurn
-    const showInfluencePicker = gameStateValue === "INFLUENCE_SELECTION_PENDING" && isMyTurn
+    const isChallengeLoser = gameStateValue === "CHALLENGE_HANDLE" && gameState?.challengeLoser?.id === userId
+    const showInfluencePicker = (gameStateValue === "INFLUENCE_SELECTION_PENDING" && isMyTurn) || isChallengeLoser
     const showChallengePanel = (gameStateValue === "ACTION_DECLARED" || gameStateValue === "BLOCK_DECLARED") && !isMyTurn
 
     return (
@@ -358,25 +367,33 @@ function PlayRoom() {
                                         text="Tax"
                                         width="auto"
                                         onClick={() => handleAction("TAX")}
-                                        disabled={!isMyTurn || !hasCard("TAX") || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        disabled={!isMyTurn || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        bluff={!hasCard("TAX")}
+                                        title={!hasCard("TAX") ? "You don't hold a Duke — this is a bluff!" : undefined}
                                     />
                                     <PrimaryButton
                                         text="Assassinate"
                                         width="auto"
                                         onClick={() => handleAction("ASSASSINATE")}
-                                        disabled={!isMyTurn || !hasCard("ASSASSINATE") || !canAfford("ASSASSINATE") || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        disabled={!isMyTurn || !canAfford("ASSASSINATE") || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        bluff={!hasCard("ASSASSINATE")}
+                                        title={!hasCard("ASSASSINATE") ? "You don't hold an Assassin — this is a bluff!" : undefined}
                                     />
                                     <PrimaryButton
                                         text="Steal"
                                         width="auto"
                                         onClick={() => handleAction("STEAL")}
-                                        disabled={!isMyTurn || !hasCard("STEAL") || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        disabled={!isMyTurn || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        bluff={!hasCard("STEAL")}
+                                        title={!hasCard("STEAL") ? "You don't hold a Captain — this is a bluff!" : undefined}
                                     />
                                     <PrimaryButton
                                         text="Exchange"
                                         width="auto"
                                         onClick={() => handleAction("EXCHANGE")}
-                                        disabled={!isMyTurn || !hasCard("EXCHANGE") || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        disabled={!isMyTurn || gameStateValue !== "WAITING_FOR_ACTION"}
+                                        bluff={!hasCard("EXCHANGE")}
+                                        title={!hasCard("EXCHANGE") ? "You don't hold an Ambassador — this is a bluff!" : undefined}
                                     />
                                 </div>
                             )}
@@ -411,7 +428,7 @@ function PlayRoom() {
             <InfluencePicker
                 visible={showInfluencePicker}
                 cards={userPlayer?.cards || []}
-                onSelect={handleInfluenceSelect}
+                onSelect={isChallengeLoser ? handleChallengeSelect : handleInfluenceSelect}
             />
 
             {/* Game Over Screen */}

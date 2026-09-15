@@ -84,3 +84,29 @@
         box-shadow: 0 4px 24px rgba(201, 168, 76, 0.45);
     }
 }
+
+/* Bluff indicator */
+.bluff {
+    border: 1.5px dashed rgba(160, 152, 136, 0.35);
+    opacity: 0.75;
+    position: relative;
+}
+
+.bluff:hover:not(:disabled) {
+    opacity: 1;
+    border-color: rgba(201, 168, 76, 0.4);
+}
+
+.bluffBadge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted, #6B6358);
+    background: rgba(160, 152, 136, 0.12);
+    padding: 1px 5px;
+    border-radius: var(--radius-sm, 6px);
+    margin-left: 4px;
+    line-height: 1;
+    vertical-align: middle;
+}

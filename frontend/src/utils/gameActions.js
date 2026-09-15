@@ -50,6 +50,13 @@ export const broadcastInfluenceSelection = (websocket, card) => {
     })
 }
 
+export const broadcastChallengeSelection = (websocket, card) => {
+    send(websocket, {
+        action: 'challenge_selection',
+        payload: { card }
+    })
+}
+
 /** Map of game actions to their required influence */
 export const ACTION_REQUIRES = {
     TAX: 'DUKE',

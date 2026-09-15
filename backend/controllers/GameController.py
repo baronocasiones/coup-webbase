@@ -25,14 +25,14 @@ class GameController:
         await self.game_manager.send_personal_message(user_id, payload)
 
     def get_game_states(self) -> dict:
-        loser_id = self.game.get_challenge_loser()
+        challenge_loser = self.game.challenge_loser
         result = {
             "state": self.game.get_game_state(),
             "cardsInDeck": self.game.get_cards_in_deck(),
             "playersState": [PlayerModel(**vars(player)) for player in self.game.get_players()],
             "declaredMove": self.game.get_declared_move(),
             "declaredBlock": self.game.get_declared_block(),
-            "challengeLoser": self.get_player_by_id(loser_id) if loser_id is not None else None,
+            "challengeLoser": PlayerModel(**vars(challenge_loser)) if challenge_loser is not None else None,
         }
         
         # Only include currentTurn if there are players

@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
@@ -55,6 +56,8 @@ def start_game():
 @app.get('/test/debug')
 def debug_game():
     """Debug endpoint — shows full game state. Only for testing."""
+    if os.environ.get("ENV") != "testing":
+        raise HTTPException(status_code=403, detail="Not available")
     players = {str(k): v.name for k, v in game.players.items()}
     return {
         "game_id": str(game.game_id),
@@ -69,6 +72,8 @@ def debug_game():
 @app.post('/test/reset')
 def reset_game():
     """Reset game state. Only for testing — must match conftest.py exactly."""
+    if os.environ.get("ENV") != "testing":
+        raise HTTPException(status_code=403, detail="Not available")
     from services.Card import Card
     from services.GameState import GameState
 

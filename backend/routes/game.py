@@ -121,10 +121,20 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                 try:
                     challenger_id = UUID(payload.get("challengerId")) if payload.get("challengerId") else user_id
                     loser_id = game_controller.game.get_challenge_loser(challenger_id)
-                    await websocket.send_json({
-                        "action": "challenge_result",
-                        "loser_id": str(loser_id) if loser_id else None,
-                    })
+                    # Broadcast updated game state to all OTHER players
+                    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+                    await game_controller.game_manager.broadcast(user_id, state)
+                except (ValueError, Exception) as e:
+                    await websocket.send_json({"error": str(e)})
+
+            elif action == "challenge_selection":
+                try:
+                    card_name = payload.get("card")
+                    card_to_remove = Influence[card_name]
+                    game_controller.game.handle_challenge(card_to_remove)
+                    # Broadcast updated game state to all OTHER players
+                    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
+                    await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
                     await websocket.send_json({"error": str(e)})
 
