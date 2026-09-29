@@ -35,6 +35,9 @@ class GameController:
             "challengeLoser": PlayerModel(**vars(challenge_loser)) if challenge_loser is not None else None,
             # Only meaningful while BLOCK_DECLARED; next_turn() clears it.
             "blockerId": self.game.blocker_id,
+            # Only meaningful while INFLUENCE_SELECTION_PENDING; next_turn()
+            # clears it. currentTurn is still the attacker at that point.
+            "pendingInfluenceTarget": self.game.pending_influence_target,
         }
         
         # Only include currentTurn if there are players

@@ -29,6 +29,21 @@ function GameStatus({ gameState, userId }) {
      */
     const blockerName = gameState?.playersState?.find(p => p.id === gameState?.blockerId)?.name
 
+    /*
+     * Name the player who has to give up an influence card.
+     *
+     * This is *not* the same as `blockerName`'s sibling question, and using
+     * `isMyTurn` here was the bug: after a Coup or Assassinate the target owes
+     * a card, but `currentTurn` still names the player who attacked, because the
+     * turn only advances once the surrender is made. So the attacker was told to
+     * choose a card from their own hand — a selection the server rejects — and
+     * the target, the only player who can legally act, was told the attacker's
+     * name. `pendingInfluenceTarget` is the id of the player the server is
+     * actually waiting on.
+     */
+    const pendingTargetId = gameState?.pendingInfluenceTarget
+    const pendingTargetName = gameState?.playersState?.find(p => p.id === pendingTargetId)?.name
+
     const getStateMessage = () => {
         switch (state) {
             case 'WAITING_FOR_ACTION':
@@ -50,9 +65,9 @@ function GameStatus({ gameState, userId }) {
                     ? 'Choose cards to keep'
                     : `${currentTurn?.name ?? 'Someone'} is exchanging cards...`
             case 'INFLUENCE_SELECTION_PENDING':
-                return isMyTurn
+                return pendingTargetId === userId
                     ? 'Choose a card to lose'
-                    : `${currentTurn?.name ?? 'Someone'} must choose a card to lose`
+                    : `${pendingTargetName ?? 'Someone'} must choose a card to lose`
             case 'GAME_OVER':
                 return 'Game Over'
             default:

@@ -26,6 +26,18 @@ class GameStateModel(BaseModel):
     # Without this the client has no way to exclude the blocker, who must not
     # be able to resolve their own block. None outside BLOCK_DECLARED.
     blockerId: Optional[UUID] = None
+    # Who must surrender an influence card, when `state` is
+    # INFLUENCE_SELECTION_PENDING.
+    #
+    # Same problem as `blockerId`, one state further on. Coup and Assassinate
+    # both hand the turn to the *target* without advancing `currentTurnIndex`, so
+    # `currentTurn` still names the player who declared the action. "Is it my
+    # turn" therefore points at the attacker, and the one player the server will
+    # actually accept a surrender from gets nothing to click. Every action
+    # handler swallows the resulting SynchronizationError into an `error` frame
+    # the client only logs, so the game sits in this state until someone reloads.
+    # None outside INFLUENCE_SELECTION_PENDING.
+    pendingInfluenceTarget: Optional[UUID] = None
 
     class config:
         extra = 'ignore'

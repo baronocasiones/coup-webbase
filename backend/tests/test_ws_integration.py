@@ -1,6 +1,7 @@
 """Integration tests for WebSocket endpoints: /ws/lobby, /ws/chat, /ws/game."""
 import json
 import pytest
+from collections import Counter
 from uuid import uuid4
 from starlette.testclient import TestClient
 from api import app
@@ -550,3 +551,169 @@ class TestBlockerIdentityPublished:
 
         assert game.state == GameState.WAITING_FOR_ACTION
         assert client.get("/game-state").json()["blockerId"] is None
+
+
+# ---------------------------------------------------------------------------
+# Who has to surrender an influence card has to be published
+# ---------------------------------------------------------------------------
+
+class TestPendingInfluenceTargetPublished:
+    """
+    Coup and Assassinate put the game in INFLUENCE_SELECTION_PENDING and set
+    `pending_influence_target` to the *target*. `next_turn()` has not run, so
+    `currentTurn` is still the player who attacked.
+
+    That made the turn the wrong thing for a client to gate on: the attacker was
+    shown the picker over their own hand, and the target — the only player the
+    server will accept a surrender from — was shown nothing. The rejection comes
+    back as an `error` frame that PlayRoom only `console.error`s, so the game
+    wedged with nobody able to move.
+
+    These tests go through the real WS + REST surface rather than the service
+    objects, because the defect was a field the client never received, not a
+    rule the server applied wrongly.
+    """
+
+    @staticmethod
+    def _reach_influence_selection_pending(client, players) -> None:
+        """Coup the second player, then let it stand: target must lose a card."""
+        for player in game.get_players():
+            if str(player.id) == players[0]["id"]:
+                player.coins = 7
+
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({
+                "action": "declare_move",
+                "payload": {"move": "coup", "target": players[1]["id"]},
+            })
+        with client.websocket_connect(f"/ws/game?user_id={players[1]['id']}") as ws:
+            ws.send_json({"action": "no_challenge"})
+
+        assert game.state == GameState.INFLUENCE_SELECTION_PENDING
+
+    @staticmethod
+    def _player(client, player_id: str) -> Player:
+        for player in game.get_players():
+            if str(player.id) == player_id:
+                return player
+        raise AssertionError(f"player {player_id} is not in the game")
+
+    def test_pending_influence_target_names_the_target_not_the_attacker(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_influence_selection_pending(client, players)
+
+        state = client.get("/game-state").json()
+
+        assert state["pendingInfluenceTarget"] == players[1]["id"]
+        # The attacker is still named as the current player. That is the whole
+        # point: a client gating on the turn picks the wrong player.
+        assert state["currentTurn"]["id"] == players[0]["id"]
+        assert state["pendingInfluenceTarget"] != state["currentTurn"]["id"]
+
+    def test_pending_influence_target_is_none_outside_the_pending_state(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+
+        assert client.get("/game-state").json()["pendingInfluenceTarget"] is None
+
+    def test_pending_influence_target_is_cleared_once_the_turn_advances(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_influence_selection_pending(client, players)
+
+        target = self._player(client, players[1]["id"])
+        card_to_lose = target.cards[0]
+        with client.websocket_connect(f"/ws/game?user_id={players[1]['id']}") as ws:
+            ws.send_json({
+                "action": "influence_selection",
+                "payload": {"card": card_to_lose.name},
+            })
+
+        assert game.state == GameState.WAITING_FOR_ACTION
+        assert client.get("/game-state").json()["pendingInfluenceTarget"] is None
+
+    def test_next_turn_clears_the_pending_target_on_its_own(self, client):
+        """
+        The clearing inside `next_turn()` itself, not the one in
+        `resolve_influence_selection()`.
+
+        Both exist, and they are not interchangeable. Resolving a surrender
+        nulls the field on its way past, so the end-to-end test above passes
+        whether or not `next_turn()` clears it — it cannot tell the two apart.
+        This one calls `next_turn()` directly with the field set, which is the
+        only way to hold the line in `next_turn()` accountable.
+
+        Service-level on purpose: the point under test is a field on the game
+        object, and reaching it over the wire would only re-test
+        `resolve_influence_selection()`.
+        """
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_influence_selection_pending(client, players)
+        target = self._player(client, players[1]["id"])
+        assert game.pending_influence_target == target.id
+
+        game.next_turn()
+
+        assert game.pending_influence_target is None
+
+    def test_the_target_can_resolve_the_surrender(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_influence_selection_pending(client, players)
+
+        target = self._player(client, players[1]["id"])
+        # Counted, not listed. The deck holds three of every influence, so a
+        # 2-card hand is a pair ~14% of the time; comparing name-lists after
+        # filtering out the surrendered name misreads a pair as two losses and
+        # fails intermittently.
+        hand_before = Counter(card.name for card in target.cards)
+        card_to_lose = target.cards[0]
+
+        with client.websocket_connect(f"/ws/game?user_id={players[1]['id']}") as ws:
+            ws.send_json({
+                "action": "influence_selection",
+                "payload": {"card": card_to_lose.name},
+            })
+
+        assert game.state == GameState.WAITING_FOR_ACTION
+
+        hand_after = Counter(card.name for card in target.cards)
+        # Exactly one card gone, and it is the one that was surrendered. Counted
+        # rather than membership-tested: `Influence` is a plain Enum, so
+        # `Influence.DUKE == "DUKE"` is False and a name-membership check here
+        # would be vacuously true whatever the hand contained. Together these
+        # two are the whole claim — the total falls by one and that specific
+        # card falls by one, so nothing else can have changed.
+        assert sum(hand_after.values()) == sum(hand_before.values()) - 1
+        assert hand_after[card_to_lose.name] == hand_before[card_to_lose.name] - 1
+
+        # The turn advanced off the attacker. With two players that lands on the
+        # target, so assert the change rather than naming a winner of the seat.
+        assert str(game.get_current_player().id) == players[1]["id"]
+        assert str(game.get_current_player().id) != players[0]["id"]
+
+    def test_the_attacker_cannot_resolve_the_surrender(self, client):
+        """
+        The exact request the buggy UI made. It is answered with an `error`
+        frame, and the client logs that and carries on, so nothing short of an
+        assertion on the game state can catch the wedge.
+        """
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_influence_selection_pending(client, players)
+
+        attacker = self._player(client, players[0]["id"])
+        target = self._player(client, players[1]["id"])
+        hand_before = [card.name for card in attacker.cards]
+        card = attacker.cards[0]
+
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({
+                "action": "influence_selection",
+                "payload": {"card": card.name},
+            })
+            reply = ws.receive_json()
+
+        assert "error" in reply, "a non-target surrender must be refused on the wire"
+        # The failure is loud on the wire but silent in the UI, so the state has
+        # to be asserted separately: the target can still resolve, and the
+        # attacker kept every card.
+        assert game.state == GameState.INFLUENCE_SELECTION_PENDING
+        assert [c.name for c in attacker.cards] == hand_before
+        assert game.pending_influence_target == target.id

@@ -371,6 +371,7 @@ class CoupGame:
         self.move_target_id = None
         self.challenger_id = None
         self.blocker_id = None
+        self.pending_influence_target = None
         for player in self.players.values():
             player.is_lying = False
 

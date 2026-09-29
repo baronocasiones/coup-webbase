@@ -132,18 +132,85 @@ describe('GameStatus component @unit', () => {
     expect(screen.getByText('Bob is exchanging cards...')).toBeInTheDocument()
   })
 
-  it('shows influence selection message for current player', () => {
+  it('shows influence selection message to the player who has to surrender', () => {
     render(
       <GameStatus
         gameState={{
           state: 'INFLUENCE_SELECTION_PENDING',
-          currentTurn: { id: '1', name: 'Alice' },
+          // Still the attacker: the turn does not move until the surrender.
+          currentTurn: { id: '2', name: 'Bob' },
+          pendingInfluenceTarget: '1',
+          playersState: [
+            { id: '1', name: 'Alice' },
+            { id: '2', name: 'Bob' },
+          ],
         }}
         userId="1"
       />
     )
 
     expect(screen.getByText('Choose a card to lose')).toBeInTheDocument()
+  })
+
+  it('names the influence target instead of the player whose turn it is', () => {
+    render(
+      <GameStatus
+        gameState={{
+          state: 'INFLUENCE_SELECTION_PENDING',
+          currentTurn: { id: '1', name: 'Alice' },
+          pendingInfluenceTarget: '2',
+          playersState: [
+            { id: '1', name: 'Alice' },
+            { id: '2', name: 'Bob' },
+          ],
+        }}
+        userId="1"
+      />
+    )
+
+    // Bob is the one who has to give up a card. The old `isMyTurn` rule said
+    // "Alice must choose a card to lose" here, which named the attacker and
+    // told the target nothing about their own obligation.
+    expect(screen.getByText('Bob must choose a card to lose')).toBeInTheDocument()
+    expect(screen.queryByText(/Alice must choose/)).not.toBeInTheDocument()
+  })
+
+  it('does not tell the attacker to choose a card when they are the current player', () => {
+    render(
+      <GameStatus
+        gameState={{
+          state: 'INFLUENCE_SELECTION_PENDING',
+          currentTurn: { id: '1', name: 'Alice' },
+          pendingInfluenceTarget: '2',
+          playersState: [
+            { id: '1', name: 'Alice' },
+            { id: '2', name: 'Bob' },
+          ],
+        }}
+        userId="1"
+      />
+    )
+
+    // The attacker owes nothing. Being the current player must not imply they
+    // are being asked for a card, or they will be offered their own hand to
+    // pick from and the server will refuse the selection.
+    expect(screen.queryByText('Choose a card to lose')).not.toBeInTheDocument()
+  })
+
+  it('falls back to a generic name when the influence target is not on the board', () => {
+    render(
+      <GameStatus
+        gameState={{
+          state: 'INFLUENCE_SELECTION_PENDING',
+          currentTurn: { id: '1', name: 'Alice' },
+          pendingInfluenceTarget: '99',
+          playersState: [],
+        }}
+        userId="1"
+      />
+    )
+
+    expect(screen.getByText('Someone must choose a card to lose')).toBeInTheDocument()
   })
 
   it('shows game over message', () => {

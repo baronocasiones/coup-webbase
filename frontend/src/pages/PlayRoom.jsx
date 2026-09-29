@@ -234,7 +234,14 @@ function PlayRoom() {
                     console.error("Game WS error:", data.error);
                 } else {
                     // State update
+                    //
+                    // Both queries, not just the public one. The target of a
+                    // Coup or Assassinate has to surrender a card, and the
+                    // picker is fed from `/user-player`, so a broadcast that
+                    // only refreshed `["gameState"]` left the target's own hand
+                    // stale — the picker would show the pre-surrender hand.
                     queryClient.invalidateQueries({ queryKey: ["gameState"] });
+                    queryClient.invalidateQueries({ queryKey: ["gameState", userId] });
                 }
             } catch (err) {
                 console.error("Failed to parse game WS message:", err);
@@ -267,7 +274,27 @@ function PlayRoom() {
     const gameStateValue = gameState?.state
     const showExchangeModal = gameStateValue === "PENDING_EXCHANGE" && isMyTurn
     const isChallengeLoser = gameStateValue === "CHALLENGE_HANDLE" && gameState?.challengeLoser?.id === userId
-    const showInfluencePicker = (gameStateValue === "INFLUENCE_SELECTION_PENDING" && isMyTurn) || isChallengeLoser
+
+    /*
+     * Who gets to pick a card off their own hand.
+     *
+     * Two paths, and they key on different fields on purpose.
+     *
+     * A lost challenge — `challengeLoser`, already published, and it really is
+     * the person named.
+     *
+     * Coup / Assassinate — `pendingInfluenceTarget`, not `isMyTurn`. The server
+     * requires the surrender from the *target*, but `next_turn()` has not run,
+     * so `currentTurn` is still the attacker. Gating on `isMyTurn` handed the
+     * picker to the attacker over their own hand; the server rejected every
+     * selection with a SynchronizationError that the WS handler turned into an
+     * `error` frame the client only `console.error`s, and the table sat in
+     * INFLUENCE_SELECTION_PENDING forever with nobody able to act.
+     */
+    const isPendingInfluenceTarget =
+        gameStateValue === "INFLUENCE_SELECTION_PENDING"
+        && gameState?.pendingInfluenceTarget === userId
+    const showInfluencePicker = isPendingInfluenceTarget || isChallengeLoser
 
     /*
      * Who gets to answer a declared move, per state.

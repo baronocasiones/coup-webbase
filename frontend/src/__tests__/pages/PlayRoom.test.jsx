@@ -322,6 +322,105 @@ describe('PlayRoom response gate @integration', () => {
 })
 
 /**
+ * Who is offered the influence picker after a Coup or Assassinate.
+ *
+ * The server owes the surrender to the *target*, but the turn has not advanced
+ * by then, so `currentTurn` still names the player who attacked. Gating on
+ * `isMyTurn` therefore put the picker in front of the attacker, over their own
+ * hand, and left the target with nothing. Every selection the attacker made was
+ * refused with a `SynchronizationError`, which the WS handler reports as an
+ * `error` frame the client only `console.error`s — so the table waited in
+ * INFLUENCE_SELECTION_PENDING until somebody reloaded.
+ *
+ * The picker is keyed off the published `pendingInfluenceTarget` instead.
+ */
+describe('PlayRoom influence selection gate @integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.sessionStorage.clear()
+  })
+
+  // Alice attacked Bob. currentTurn has not moved, so it still names Alice.
+  const pendingSelectionState = {
+    ...mockGameState,
+    state: 'INFLUENCE_SELECTION_PENDING',
+    declaredMove: 'COUP',
+    currentTurn: { id: 'user-1', name: 'Alice' },
+    pendingInfluenceTarget: 'user-2',
+  }
+
+  const bob = { ...mockUserPlayer, id: 'user-2', name: 'Bob', cards: ['CAPTAIN', 'CONTESSA'] }
+
+  it('offers the picker to the target', async () => {
+    renderPlayRoom(pendingSelectionState, bob, 'user-2')
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'Choose a card to lose' })).toBeInTheDocument()
+    })
+    // The target's own hand, since the picker is fed from /user-player.
+    expect(screen.getByText('You must permanently remove one influence card.')).toBeInTheDocument()
+  })
+
+  it('does not offer the picker to the attacker, even though it is their turn', async () => {
+    // The regression. Alice is `currentTurn`, so `isMyTurn` is true and the
+    // picker used to open over her own hand.
+    renderPlayRoom(pendingSelectionState)
+
+    await waitFor(() => {
+      expect(screen.getByText("It's your Turn")).toBeInTheDocument()
+    })
+
+    expect(screen.queryByRole('dialog', { name: 'Choose a card to lose' })).not.toBeInTheDocument()
+  })
+
+  it('leaves the server free to reject the attacker, who owes nothing', async () => {
+    // The attacker is told, correctly, that somebody else has to choose.
+    renderPlayRoom(pendingSelectionState)
+
+    await waitFor(() => {
+      expect(screen.getByText('Bob must choose a card to lose')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Choose a card to lose')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * The generic broadcast branch has to refresh the private query too.
+ *
+ * The picker reads the hand off `["gameState", userId]`. Invalidation of the
+ * public query alone leaves the target looking at a stale hand after any
+ * broadcast, which is how a surrender appears not to have taken effect.
+ */
+describe('PlayRoom game WS state update @integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.sessionStorage.clear()
+  })
+
+  function gameSocket() {
+    const socket = window.WebSocket.instances.find((s) => s.url.includes('/ws/game'))
+    if (!socket) throw new Error('no game socket was opened')
+    return socket
+  }
+
+  it('invalidates the public and the private game state on a broadcast', async () => {
+    const { queryClient } = renderPlayRoom()
+
+    await waitFor(() => {
+      expect(gameSocket()).toBeTruthy()
+    })
+
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    // A plain state update: no `action`, no `error`.
+    gameSocket()._simulateMessage({ state: 'INFLUENCE_SELECTION_PENDING' })
+
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['gameState'] })
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['gameState', 'user-1'] })
+  })
+})
+
+/**
  * The Exchange payload, asserted on the frame that actually goes out.
  *
  * `exchangeCards` is the hand followed by the two cards just drawn, sent only
