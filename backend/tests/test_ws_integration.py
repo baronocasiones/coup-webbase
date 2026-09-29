@@ -2,7 +2,7 @@
 import json
 import pytest
 from collections import Counter
-from uuid import uuid4
+from uuid import UUID, uuid4
 from starlette.testclient import TestClient
 from api import app
 from services.CoupGame import CoupGame
@@ -10,6 +10,8 @@ from services.Player import Player
 from services.GameState import GameState
 from services.GameAction import GameAction
 from services.Influence import Influence
+from services.BlockMove import BlockMove
+from utils.exceptions import SynchronizationError
 from controllers.LobbyController import lobby_controller
 from controllers.GameController import game_controller
 from services.ConnectionManager import ConnectionManager
@@ -717,3 +719,119 @@ class TestPendingInfluenceTargetPublished:
         assert game.state == GameState.INFLUENCE_SELECTION_PENDING
         assert [c.name for c in attacker.cards] == hand_before
         assert game.pending_influence_target == target.id
+
+
+# ---------------------------------------------------------------------------
+# Who may block
+# ---------------------------------------------------------------------------
+
+class TestBlockEligibility:
+    """
+    A block answers being *hit*, so only the target of a targeted action may
+    block it. The server used to accept a block from any player at the table,
+    because the client was the only gate — and the client had no way to know who
+    the target was, since `move_target_id` was never on the wire. It offered
+    Block to everyone.
+
+    Foreign Aid is the deliberate exception and is pinned here: it is blockable
+    but untargeted, and in Coup any player may block it. A blanket "only the
+    target may block" would silently delete the third of three blockable actions,
+    so the carve-out needs a test of its own rather than an assumption.
+    """
+
+    @staticmethod
+    def _ids(players: list[dict]) -> list[UUID]:
+        return [UUID(p["id"]) for p in players]
+
+    @staticmethod
+    def _player(player_id: UUID) -> Player:
+        player = game.get_player_by_id(player_id)
+        if player is None:
+            raise AssertionError(f"player {player_id} is not in the game")
+        return player
+
+    def test_the_target_of_a_steal_may_block_it(self, client):
+        alice, bob, _ = self._ids(_make_game_with_players(client, ["Alice", "Bob", "Carol"]))
+        game.declare_move(alice, GameAction.STEAL, target_id=bob)
+
+        assert game.state == GameState.ACTION_DECLARED
+        game.declare_move(bob, BlockMove.BLOCK_STEAL, blocker_id=bob)
+
+        assert game.state == GameState.BLOCK_DECLARED
+        assert game.blocker_id == bob
+
+    def test_a_bystander_may_not_block_a_steal(self, client):
+        alice, bob, carol = self._ids(_make_game_with_players(client, ["Alice", "Bob", "Carol"]))
+        game.declare_move(alice, GameAction.STEAL, target_id=bob)
+
+        with pytest.raises(SynchronizationError, match="Only the target of an action can block it"):
+            game.declare_move(carol, BlockMove.BLOCK_STEAL, blocker_id=carol)
+
+        # Refused, and nothing moved: not the state, not the blocker, not the
+        # block. A refusal that half-applied would be worse than none.
+        assert game.state == GameState.ACTION_DECLARED
+        assert game.blocker_id is None
+        assert game.declared_block is None
+
+    def test_a_bystander_may_not_block_an_assassination(self, client):
+        alice, bob, carol = self._ids(_make_game_with_players(client, ["Alice", "Bob", "Carol"]))
+        self._player(alice).coins = 3
+        game.declare_move(alice, GameAction.ASSASSINATE, target_id=bob)
+
+        with pytest.raises(SynchronizationError, match="Only the target of an action can block it"):
+            game.declare_move(carol, BlockMove.BLOCK_ASSASSINATION, blocker_id=carol)
+
+        assert game.state == GameState.ACTION_DECLARED
+
+    def test_the_target_may_block_without_holding_the_influence(self, client):
+        # Restricting *who* may block is not the same as demanding the card. In
+        # Coup you claim the influence and reveal it only if challenged, so an
+        # unbacked block is the bluff, not an error. Rejecting it here would make
+        # the BLOCK_DECLARED branch of get_challenge_loser() unreachable.
+        alice, bob, _ = self._ids(_make_game_with_players(client, ["Alice", "Bob", "Carol"]))
+        self._player(bob).update_cards([Influence.ASSASSIN, Influence.CONTESSA])  # no Captain
+        game.declare_move(alice, GameAction.STEAL, target_id=bob)
+
+        game.declare_move(bob, BlockMove.BLOCK_STEAL, blocker_id=bob)
+
+        assert game.state == GameState.BLOCK_DECLARED
+
+    def test_any_player_may_block_foreign_aid_because_it_has_no_target(self, client):
+        alice, _, carol = self._ids(_make_game_with_players(client, ["Alice", "Bob", "Carol"]))
+        game.declare_move(alice, GameAction.FOREIGN_AID)
+        assert game.move_target_id is None
+
+        # Carol is nobody in particular here, and that is correct: Foreign Aid
+        # can be blocked by any player.
+        game.declare_move(carol, BlockMove.BLOCK_FOREIGN_AID, blocker_id=carol)
+
+        assert game.state == GameState.BLOCK_DECLARED
+        assert game.blocker_id == carol
+
+    def test_move_target_is_published_for_a_targeted_action(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        alice, bob, _ = self._ids(players)
+        game.declare_move(alice, GameAction.STEAL, target_id=bob)
+
+        state = client.get("/game-state").json()
+
+        assert state["moveTargetId"] == players[1]["id"]
+        assert state["moveTargetId"] != state["currentTurn"]["id"]
+
+    def test_move_target_is_absent_for_an_untargeted_action(self, client):
+        # The absence carries meaning: it is what keeps Foreign Aid blockable by
+        # anyone, so the client and the server agree on who may block.
+        alice, _, _ = self._ids(_make_game_with_players(client, ["Alice", "Bob", "Carol"]))
+        game.declare_move(alice, GameAction.FOREIGN_AID)
+
+        assert client.get("/game-state").json()["moveTargetId"] is None
+
+    def test_move_target_is_cleared_once_the_turn_advances(self, client):
+        alice, bob, _ = self._ids(_make_game_with_players(client, ["Alice", "Bob", "Carol"]))
+        game.declare_move(alice, GameAction.STEAL, target_id=bob)
+        assert game.move_target_id == bob
+
+        game.next_turn()
+
+        assert game.move_target_id is None
+        assert client.get("/game-state").json()["moveTargetId"] is None

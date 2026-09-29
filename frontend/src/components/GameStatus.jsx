@@ -44,6 +44,19 @@ function GameStatus({ gameState, userId }) {
     const pendingTargetId = gameState?.pendingInfluenceTarget
     const pendingTargetName = gameState?.playersState?.find(p => p.id === pendingTargetId)?.name
 
+    /*
+     * Who the declared action is aimed at, when it is aimed at anyone.
+     *
+     * A block answers being hit, so whoever is named here is the only player
+     * who may block — the rest of the table is deciding whether to challenge.
+     * Naming the target makes the message match the choice being offered, which
+     * is otherwise a bare "Action declared" naming nobody. It also tells a
+     * bystander that the action is not about them, which is the difference
+     * between reading the table and guessing.
+     */
+    const moveTargetId = gameState?.moveTargetId
+    const moveTargetName = gameState?.playersState?.find(p => p.id === moveTargetId)?.name
+
     const getStateMessage = () => {
         switch (state) {
             case 'WAITING_FOR_ACTION':
@@ -51,9 +64,13 @@ function GameStatus({ gameState, userId }) {
                     ? "It's your turn — choose an action"
                     : `Waiting for ${currentTurn?.name ?? 'Unknown'}...`
             case 'ACTION_DECLARED':
-                return declaredMove
-                    ? `${currentTurn?.name ?? 'Someone'} declared ${formatMove(declaredMove)}`
-                    : 'Action declared'
+                if (!declaredMove) return 'Action declared'
+                // "declared Steal from Bob" when there is someone to name. The
+                // phrasing stays the same either way, so the fallback is the
+                // actor rather than a visibly truncated sentence.
+                return moveTargetName
+                    ? `${currentTurn?.name ?? 'Someone'} declared ${formatMove(declaredMove)} from ${moveTargetName}`
+                    : `${currentTurn?.name ?? 'Someone'} declared ${formatMove(declaredMove)}`
             case 'BLOCK_DECLARED':
                 return declaredBlock
                     ? `${blockerName ?? 'Someone'} blocked with ${formatBlock(declaredBlock)}`

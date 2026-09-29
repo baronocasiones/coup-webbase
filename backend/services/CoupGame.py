@@ -215,6 +215,28 @@ class CoupGame:
         if isinstance(move, BlockMove) and self.declared_move is not None and not self.declared_move.is_blockable():
             raise ValueError("This move cannot be blocked.")
 
+        # Eligibility: a block answers being *hit*, so only the target of a
+        # targeted action may block it. Without this the server took a block from
+        # any player at the table, because the client was the only gate and the
+        # client had no way to know who the target was.
+        #
+        # Deliberately NOT applied when the declared action is untargeted.
+        # Foreign Aid is blockable and has no target, and in Coup any player may
+        # block it — so there is nothing here to compare against, and gating on
+        # the target would silently delete the third of three blockable actions.
+        #
+        # This says nothing about whether the blocker *holds* the influence. In
+        # Coup you claim the card and reveal it only if challenged, so a block
+        # the player cannot back is the bluff, and get_challenge_loser() is what
+        # resolves it. Do not add a card-ownership check here.
+        if (
+            isinstance(move, BlockMove)
+            and self.declared_move is not None
+            and self.declared_move.is_targetable()
+            and blocker_id != self.move_target_id
+        ):
+            raise SynchronizationError("Only the target of an action can block it.")
+
         # Forced coup at 10+ coins
         if isinstance(move, GameAction) and move != GameAction.COUP:
             if current_player.coins >= globals.COUP_THRESHOLD:

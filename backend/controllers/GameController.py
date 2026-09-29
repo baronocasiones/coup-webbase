@@ -38,6 +38,10 @@ class GameController:
             # Only meaningful while INFLUENCE_SELECTION_PENDING; next_turn()
             # clears it. currentTurn is still the attacker at that point.
             "pendingInfluenceTarget": self.game.pending_influence_target,
+            # Only set while a *targetable* action is declared. None for an
+            # untargeted one, which is what makes Foreign Aid blockable by
+            # anyone.
+            "moveTargetId": self.game.move_target_id,
         }
         
         # Only include currentTurn if there are players

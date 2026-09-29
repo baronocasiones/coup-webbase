@@ -38,6 +38,18 @@ class GameStateModel(BaseModel):
     # the client only logs, so the game sits in this state until someone reloads.
     # None outside INFLUENCE_SELECTION_PENDING.
     pendingInfluenceTarget: Optional[UUID] = None
+    # Who the declared action is aimed at, when it is aimed at anyone.
+    #
+    # Set only for a targetable action (Coup, Assassinate, Steal); next_turn()
+    # clears it. A block is a response to being *hit*, so only the target may
+    # block a Steal or an Assassination. The client cannot work that out for
+    # itself — `move_target_id` was never on the wire — so it offered Block to
+    # the whole table, and the server accepted it from anyone.
+    #
+    # None for an untargeted action, and that absence is meaningful rather than
+    # merely missing: Foreign Aid is blockable but has no target, and any player
+    # may block it. See the eligibility check in CoupGame.declare_move().
+    moveTargetId: Optional[UUID] = None
 
     class config:
         extra = 'ignore'

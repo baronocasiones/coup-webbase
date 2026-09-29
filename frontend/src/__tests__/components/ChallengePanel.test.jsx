@@ -103,6 +103,10 @@ describe('ChallengePanel component @unit', () => {
         gameState={{
           ...defaultProps.gameState,
           declaredMove: 'STEAL',
+          // The viewer is the one being robbed, so they are the one who may
+          // block. Eligibility is a separate axis from composition, and is
+          // covered on its own below.
+          moveTargetId: '1',
         }}
       />
     )
@@ -123,6 +127,7 @@ describe('ChallengePanel component @unit', () => {
         gameState={{
           ...defaultProps.gameState,
           declaredMove: 'ASSASSINATE',
+          moveTargetId: '1',
         }}
       />
     )
@@ -157,6 +162,92 @@ describe('ChallengePanel component @unit', () => {
     )
 
     expect(screen.queryByText('Challenge')).not.toBeInTheDocument()
+    expect(screen.getByText('Pass')).toBeInTheDocument()
+  })
+
+  // --- Who may block at all ------------------------------------------------
+  //
+  // Eligibility, which is a different axis from whether the block can be backed.
+  // A block answers being *hit*, so for a targeted action only the target may
+  // block it. Offering it to the whole table put a Block button in front of
+  // players who were not the victim of anything, and the server took it from
+  // them — the client was the only gate and it had no way to know the target,
+  // because `move_target_id` was never on the wire.
+
+  it('withholds Block from a bystander facing a targeted action', () => {
+    render(
+      <ChallengePanel
+        {...defaultProps}
+        cards={['CAPTAIN']}
+        gameState={{
+          ...defaultProps.gameState,
+          declaredMove: 'STEAL',
+          moveTargetId: '3', // someone else is being robbed
+        }}
+      />
+    )
+
+    // The bystander keeps the other two options. Block is not "one fewer
+    // option" — challenge and pass are the whole of their involvement.
+    expect(screen.queryByText(/^Block/)).not.toBeInTheDocument()
+    expect(screen.getByText('Challenge')).toBeInTheDocument()
+    expect(screen.getByText('Pass')).toBeInTheDocument()
+  })
+
+  it('withholds Block from a bystander facing an Assassination', () => {
+    render(
+      <ChallengePanel
+        {...defaultProps}
+        cards={['CONTESSA']}
+        gameState={{
+          ...defaultProps.gameState,
+          declaredMove: 'ASSASSINATE',
+          moveTargetId: '3',
+        }}
+      />
+    )
+
+    expect(screen.queryByText(/^Block/)).not.toBeInTheDocument()
+    expect(screen.getByText('Challenge')).toBeInTheDocument()
+  })
+
+  it('offers Block to the target even when they cannot back it', () => {
+    // The two axes must not be conflated. Restricting Block to the target is
+    // not a licence to also demand the influence — that would delete the bluff.
+    render(
+      <ChallengePanel
+        {...defaultProps}
+        cards={['ASSASSIN']} // no Captain
+        gameState={{
+          ...defaultProps.gameState,
+          declaredMove: 'STEAL',
+          moveTargetId: '1',
+        }}
+      />
+    )
+
+    const blockBtn = screen.getByText(/^Block/).closest('button')
+    expect(blockBtn).not.toBeDisabled()
+    expect(blockBtn.getAttribute('title')).toMatch(/this is a bluff/)
+  })
+
+  it('keeps Foreign Aid blockable by any player, since it has no target', () => {
+    // The carve-out that a blanket "only the target may block" would delete.
+    // Foreign Aid is blockable but untargeted, and in Coup any player may block
+    // it, so `moveTargetId` is null and the restriction does not apply.
+    render(
+      <ChallengePanel
+        {...defaultProps}
+        gameState={{
+          ...defaultProps.gameState,
+          declaredMove: 'FOREIGN AID',
+          moveTargetId: null,
+        }}
+      />
+    )
+
+    expect(screen.getByText('Block (BLOCK FOREIGN AID)')).toBeInTheDocument()
+    // Not challengeable, so Pass is all that is left alongside it.
     expect(screen.getByText('Pass')).toBeInTheDocument()
   })
 
@@ -210,11 +301,14 @@ describe('ChallengePanel component @unit', () => {
   it('accepts either a Captain or an Ambassador as backing BLOCK STEAL', () => {
     // Influence.AMBASSADOR grants BLOCK STEAL as well as CAPTAIN. A scalar
     // mapping reported an Ambassador's block as unbackable.
+    //
+    // `moveTargetId` marks the viewer as the one being robbed, because this is
+    // about which influence *backs* a block; eligibility is pinned separately.
     const { rerender } = render(
       <ChallengePanel
         {...defaultProps}
         cards={['AMBASSADOR']}
-        gameState={{ ...defaultProps.gameState, declaredMove: 'STEAL' }}
+        gameState={{ ...defaultProps.gameState, declaredMove: 'STEAL', moveTargetId: '1' }}
       />
     )
     expect(screen.getByText(/Block/).closest('button').getAttribute('title') ?? '').not.toMatch(
@@ -225,7 +319,7 @@ describe('ChallengePanel component @unit', () => {
       <ChallengePanel
         {...defaultProps}
         cards={['CAPTAIN']}
-        gameState={{ ...defaultProps.gameState, declaredMove: 'STEAL' }}
+        gameState={{ ...defaultProps.gameState, declaredMove: 'STEAL', moveTargetId: '1' }}
       />
     )
     expect(screen.getByText(/Block/).closest('button').getAttribute('title') ?? '').not.toMatch(

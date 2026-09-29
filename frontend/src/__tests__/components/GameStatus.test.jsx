@@ -51,6 +51,67 @@ describe('GameStatus component @unit', () => {
     expect(screen.getByText('Bob declared tax')).toBeInTheDocument()
   })
 
+  it('names the target of a targeted action', () => {
+    // "declared tax" is right for an untargeted action and wrong for a Steal,
+    // which hits somebody. The target is also the only player who may block it,
+    // so naming them keeps the banner in step with the choice being offered.
+    render(
+      <GameStatus
+        gameState={{
+          state: 'ACTION_DECLARED',
+          declaredMove: 'STEAL',
+          currentTurn: { id: '1', name: 'Alice' },
+          moveTargetId: '2',
+          playersState: [
+            { id: '1', name: 'Alice' },
+            { id: '2', name: 'Bob' },
+          ],
+        }}
+        userId="3"
+      />
+    )
+
+    expect(screen.getByText('Alice declared steal from Bob')).toBeInTheDocument()
+  })
+
+  it('leaves an untargeted action unnamed rather than truncating the sentence', () => {
+    // Foreign Aid has no target. "declared foreign aid from" would be a visible
+    // bug, so the phrasing has to stay the same with and without a target.
+    render(
+      <GameStatus
+        gameState={{
+          state: 'ACTION_DECLARED',
+          declaredMove: 'FOREIGN AID',
+          currentTurn: { id: '1', name: 'Alice' },
+          moveTargetId: null,
+          playersState: [{ id: '1', name: 'Alice' }],
+        }}
+        userId="1"
+      />
+    )
+
+    expect(screen.getByText('Alice declared foreign aid')).toBeInTheDocument()
+  })
+
+  it('falls back to the plain message when the target is not on the board', () => {
+    render(
+      <GameStatus
+        gameState={{
+          state: 'ACTION_DECLARED',
+          declaredMove: 'STEAL',
+          currentTurn: { id: '1', name: 'Alice' },
+          moveTargetId: '99',
+          playersState: [],
+        }}
+        userId="1"
+      />
+    )
+
+    // Degrades to what it said before the target was publishable, rather than
+    // to "declared steal from undefined".
+    expect(screen.getByText('Alice declared steal')).toBeInTheDocument()
+  })
+
   it('shows block declared message', () => {
     render(
       <GameStatus

@@ -132,9 +132,16 @@ test.describe('Gameplay: block response routing', () => {
       .poll(async () => (await getGameState(page)).state, { timeout: 10000 })
       .toBe('ACTION_DECLARED');
 
-    // Bob blocks. The Block button is offered to every player regardless of
-    // hand — declaring a block you cannot back is a legal bluff, resolved by
-    // the challenge system — so this step does not depend on the deal.
+    // Bob blocks. Two rules are at work and they are separate.
+    //
+    // Foreign Aid is blockable but has *no target*, so any player may block it —
+    // there is no one being hit to answer for. For a targeted action (Steal,
+    // Assassination) only the target may block, and the rest of the table is
+    // left with challenge and pass.
+    //
+    // Independently, Bob is not asked to hold a Duke: declaring a block he
+    // cannot back is a legal bluff, resolved by the challenge system. So this
+    // step does not depend on the deal.
     await expect
       .poll(async () => playRoom2.blockButton.isVisible().catch(() => false), { timeout: 10000 })
       .toBe(true);

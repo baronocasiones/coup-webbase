@@ -88,6 +88,21 @@ export const BLOCKABLE_ACTIONS = {
 }
 
 /**
+ * Actions aimed at another player, and so blockable only by that player.
+ *
+ * Mirrors `GameAction.is_targetable()` on the backend. A block answers being
+ * *hit*, so for one of these only the target may block; everyone else may
+ * challenge or pass. This is a list rather than "any action with a Block button"
+ * because the untargeted case has to stay legal.
+ *
+ * Foreign Aid is absent on purpose. It is blockable but has no target, and in
+ * Coup any player may block it, so there is no one to restrict the block to. The
+ * backend applies the same carve-out, and a test pins it so the two cannot
+ * drift.
+ */
+export const TARGETABLE_ACTIONS = ['COUP', 'ASSASSINATE', 'STEAL']
+
+/**
  * Actions the rules let a player challenge.
  *
  * Mirrors `GameAction.is_challengeable()` on the backend, which is the same
