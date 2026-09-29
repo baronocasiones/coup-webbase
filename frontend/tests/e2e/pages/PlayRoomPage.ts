@@ -87,9 +87,37 @@ export class PlayRoomPage {
     await this.challengeBlockButton.click();
   }
 
+  /**
+   * Card buttons in the exchange picker.
+   *
+   * Selected by accessible name, not by class. The CSS Module class names are
+   * substring-ambiguous: `exchangeCard` prefixes `exchangeCards`,
+   * `exchangeCardIcon` and `exchangeCardName`, so `[class*="exchangeCard"]`
+   * matches the container plus two spans per button — 13 nodes for a
+   * four-card pool. The buttons carry `aria-label="Select <CARD>"`.
+   */
+  get exchangeCardButtons(): Locator {
+    return this.page.locator('[class*="exchangeModal"] button[aria-label^="Select "]');
+  }
+
+  /** The influences currently in the exchange pool, in picker order. */
+  async getExchangeCardNames(): Promise<string[]> {
+    return (await this.page.locator('[class*="exchangeCardName"]').allTextContents()).map((t) => t.trim());
+  }
+
   async selectInfluence(card: string) {
-    const cardButton = this.page.locator('[class*="exchangeCard"]', { hasText: card });
-    await cardButton.click();
+    await this.exchangeCardButtons.filter({ hasText: card }).first().click();
+  }
+
+  /**
+   * Select a card in the exchange picker by position.
+   *
+   * Position, not name: the court deck holds three of every influence, so a
+   * pool containing a repeated card is routine and a name selector is
+   * ambiguous. The pool is ordered hand-first, drawn-second.
+   */
+  async selectExchangeCardAt(index: number) {
+    await this.exchangeCardButtons.nth(index).click();
   }
 
   async selectExchangeCards(cards: string[]) {

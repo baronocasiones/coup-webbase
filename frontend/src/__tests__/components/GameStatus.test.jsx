@@ -57,13 +57,37 @@ describe('GameStatus component @unit', () => {
         gameState={{
           state: 'BLOCK_DECLARED',
           declaredBlock: 'BLOCK FOREIGN AID',
-          currentTurn: { id: '2', name: 'Bob' },
+          currentTurn: { id: '1', name: 'Alice' },
+          blockerId: '2',
+          playersState: [
+            { id: '1', name: 'Alice' },
+            { id: '2', name: 'Bob' },
+          ],
         }}
         userId="1"
       />
     )
 
-    expect(screen.getByText('Block declared: block foreign aid')).toBeInTheDocument()
+    // "Block declared: block foreign aid" named nobody, so a player deciding
+    // whether to challenge had to identify the blocker by elimination.
+    expect(screen.getByText('Bob blocked with foreign aid')).toBeInTheDocument()
+  })
+
+  it('falls back to a generic name when the blocker is not in the player list', () => {
+    render(
+      <GameStatus
+        gameState={{
+          state: 'BLOCK_DECLARED',
+          declaredBlock: 'BLOCK STEAL',
+          currentTurn: { id: '1', name: 'Alice' },
+          blockerId: '99',
+          playersState: [],
+        }}
+        userId="1"
+      />
+    )
+
+    expect(screen.getByText('Someone blocked with steal')).toBeInTheDocument()
   })
 
   it('shows challenge in progress message', () => {

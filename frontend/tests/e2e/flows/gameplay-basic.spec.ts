@@ -73,7 +73,17 @@ test.describe('Gameplay: basic actions', () => {
     const playRoom = new PlayRoomPage(page);
     await playRoom.waitForLoad();
 
-    await expect(playRoom.turnName).toBeVisible();
+    // The only test in this file that skipped the WS wait, and the one that
+    // intermittently failed on a full-suite run: the header renders, but the
+    // turn name is not in it until the game state query resolves, so a cold
+    // first-load could exceed the 5s visibility timeout.
+    await waitForWsConnected(page);
+
+    // Assert what the test is named after. `toBeVisible()` on the locator
+    // proved the element renders; it said nothing about whose turn it names,
+    // which is the claim in the title.
+    expect((await getGameState(page)).currentTurn?.id).toBe(p1.userId);
+    await expect(playRoom.turnName).toHaveText("It's your Turn");
 
     await context2.close();
   });

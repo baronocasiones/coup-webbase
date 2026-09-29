@@ -51,13 +51,13 @@ const mockUserPlayer = {
   isReady: true,
 }
 
-function renderPlayRoom(gameStateData = mockGameState, userPlayerData = mockUserPlayer) {
+function renderPlayRoom(gameStateData = mockGameState, userPlayerData = mockUserPlayer, userId = 'user-1') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
 
-  window.sessionStorage.setItem('userId', 'user-1')
-  window.sessionStorage.setItem('username', 'Alice')
+  window.sessionStorage.setItem('userId', userId)
+  window.sessionStorage.setItem('username', userPlayerData?.name ?? 'Alice')
 
   getGame.mockResolvedValue(gameStateData)
   getUserPlayer.mockResolvedValue(userPlayerData)
@@ -231,3 +231,165 @@ describe('PlayRoom page @integration', () => {
     })
   })
 })
+
+/**
+ * Who is offered a response to a declared move.
+ *
+ * The rule inverts between the two declared states, and getting it wrong is
+ * what routed the post-block challenge prompt to the blocker instead of the
+ * player whose action had been blocked. `currentTurn` does not move until the
+ * block resolves, so during BLOCK_DECLARED it still names the actor — a single
+ * `!isMyTurn` test hides the panel from the one person who may legally answer
+ * and shows it to the blocker, who may answer nothing.
+ *
+ * These belong to PlayRoom rather than ChallengePanel because PlayRoom is the
+ * only component that sees both states at once.
+ */
+describe('PlayRoom response gate @integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.sessionStorage.clear()
+  })
+
+  const blockedState = {
+    ...mockGameState,
+    state: 'BLOCK_DECLARED',
+    declaredMove: 'FOREIGN AID',
+    declaredBlock: 'BLOCK FOREIGN AID',
+    // Alice declared the action and it is still her turn until the block
+    // resolves, so currentTurn deliberately still names her.
+    currentTurn: { id: 'user-1', name: 'Alice' },
+    blockerId: 'user-2',
+  }
+
+  it('offers the block response to the player whose action was blocked', async () => {
+    renderPlayRoom(blockedState)
+
+    await waitFor(() => {
+      expect(screen.getByText('Challenge Block')).toBeInTheDocument()
+      expect(screen.getByText('Accept Block')).toBeInTheDocument()
+    })
+  })
+
+  it('does not offer the block response to the blocker', async () => {
+    // The blocker used to be handed the panel, including an "Accept Block"
+    // button that resolved their own block for the whole table.
+    const bob = { ...mockUserPlayer, id: 'user-2', name: 'Bob' }
+    // currentTurn still names Alice: the blocked player, not Bob.
+    renderPlayRoom({ ...blockedState, currentTurn: { id: 'user-1', name: 'Alice' } }, bob, 'user-2')
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice's Turn")).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('Challenge Block')).not.toBeInTheDocument()
+    expect(screen.queryByText('Accept Block')).not.toBeInTheDocument()
+  })
+
+  it('offers the action response to other players, not the declarer', async () => {
+    const actionState = {
+      ...mockGameState,
+      state: 'ACTION_DECLARED',
+      declaredMove: 'FOREIGN AID',
+      currentTurn: { id: 'user-1', name: 'Alice' },
+    }
+    const bob = { ...mockUserPlayer, id: 'user-2', name: 'Bob' }
+
+    renderPlayRoom(actionState, bob, 'user-2')
+
+    await waitFor(() => {
+      expect(screen.getByText(/Respond to FOREIGN AID/)).toBeInTheDocument()
+    })
+    expect(screen.getByText('Block (BLOCK FOREIGN AID)')).toBeInTheDocument()
+  })
+
+  it('does not show the action response to the player who declared it', async () => {
+    const actionState = {
+      ...mockGameState,
+      state: 'ACTION_DECLARED',
+      declaredMove: 'FOREIGN AID',
+      currentTurn: { id: 'user-1', name: 'Alice' },
+    }
+
+    renderPlayRoom(actionState)
+
+    await waitFor(() => {
+      expect(screen.getByText("It's your Turn")).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText(/Respond to/)).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * The Exchange payload, asserted on the frame that actually goes out.
+ *
+ * `exchangeCards` is the hand followed by the two cards just drawn, sent only
+ * to the exchanging player over the private `/user-player` channel. The modal
+ * used to read it from the public `gameState.exchangeCards` — a field the
+ * backend has never sent — so the `||` fallback always won, the pool collapsed
+ * to the player's own hand, and the header read "You drew 0 cards".
+ */
+describe('PlayRoom exchange flow @integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.sessionStorage.clear()
+  })
+
+  const exchangingPlayer = {
+    id: 'user-1',
+    name: 'Alice',
+    coins: 2,
+    cards: ['CONTESSA'],
+    exchangeCards: ['CONTESSA', 'ASSASSIN', 'ASSASSIN'],
+  }
+
+  const pendingExchangeState = {
+    ...mockGameState,
+    state: 'PENDING_EXCHANGE',
+    currentTurn: { id: 'user-1', name: 'Alice' },
+  }
+
+  it('shows the drawn cards, not just the hand', async () => {
+    renderPlayRoom(pendingExchangeState, exchangingPlayer)
+
+    await waitFor(() => {
+      // Three in the pool: one held, two drawn.
+      expect(screen.getByText(/You drew 2 cards\./)).toBeInTheDocument()
+      expect(screen.getByText(/Select 1 to keep/)).toBeInTheDocument()
+    })
+  })
+
+  it('sends plain influence names to the server', async () => {
+    // The regression this whole flow was broken by. Selection was keyed on
+    // `card + index` and those strings were submitted verbatim, so the backend
+    // received "ASSASSIN0", `Influence[...]` raised, the error came back as a
+    // frame the client only `console.error`s, and the game sat in
+    // PENDING_EXCHANGE forever.
+    const { fireEvent } = await import('@testing-library/react')
+    renderPlayRoom(pendingExchangeState, exchangingPlayer)
+
+    await waitFor(() => {
+      expect(screen.getByText(/You drew 2 cards\./)).toBeInTheDocument()
+    })
+
+    // Keep the first of the two identical Assassins. Selecting by index is
+    // what makes an identical pair distinguishable.
+    const assassinButtons = screen.getAllByText('ASSASSIN')
+    fireEvent.click(assassinButtons[0])
+    fireEvent.click(screen.getByText('Confirm Selection'))
+
+    await waitFor(() => {
+      const [socket] = window.WebSocket.instances
+      expect(socket).toBeTruthy()
+      const exchange = socket.sentMessages.find((m) => m.action === 'exchange_selection')
+      expect(exchange).toBeDefined()
+      expect(exchange.payload.cards).toEqual(['ASSASSIN'])
+      for (const card of exchange.payload.cards) {
+        // No index suffix, no mangling — the server looks these up by name.
+        expect(card).toMatch(/^[A-Z]+$/)
+      }
+    })
+  })
+})
+

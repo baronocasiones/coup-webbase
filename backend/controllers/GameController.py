@@ -33,6 +33,8 @@ class GameController:
             "declaredMove": self.game.get_declared_move(),
             "declaredBlock": self.game.get_declared_block(),
             "challengeLoser": PlayerModel(**vars(challenge_loser)) if challenge_loser is not None else None,
+            # Only meaningful while BLOCK_DECLARED; next_turn() clears it.
+            "blockerId": self.game.blocker_id,
         }
         
         # Only include currentTurn if there are players

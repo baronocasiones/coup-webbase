@@ -18,6 +18,15 @@ export interface GameStateResponse {
   declaredBlock: string | null;
   challengeLoser: PlayerResponse | null;
   currentTurn: PlayerResponse;
+  /**
+   * Who declared the block, while `state` is BLOCK_DECLARED.
+   *
+   * Distinct from `currentTurn`, which during a block still names the player
+   * whose action was blocked. Without this the client cannot tell the actor
+   * from the blocker, which is how the challenge prompt ended up on the wrong
+   * screen.
+   */
+  blockerId: string | null;
 }
 
 /**

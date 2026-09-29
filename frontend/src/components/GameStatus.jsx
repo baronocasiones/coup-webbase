@@ -20,6 +20,15 @@ function GameStatus({ gameState, userId }) {
     const challengeLoser = gameState?.challengeLoser
     const isMyTurn = currentTurn?.id === userId
 
+    /*
+     * Name the blocker. "Block declared: block foreign aid" named nobody, so a
+     * player deciding whether to challenge a block had to work out whose it was
+     * by elimination from the board. `blockerId` is on the public state for
+     * exactly this, and for ChallengePanel's guard against the blocker
+     * answering their own block.
+     */
+    const blockerName = gameState?.playersState?.find(p => p.id === gameState?.blockerId)?.name
+
     const getStateMessage = () => {
         switch (state) {
             case 'WAITING_FOR_ACTION':
@@ -32,7 +41,7 @@ function GameStatus({ gameState, userId }) {
                     : 'Action declared'
             case 'BLOCK_DECLARED':
                 return declaredBlock
-                    ? `Block declared: ${formatBlock(declaredBlock)}`
+                    ? `${blockerName ?? 'Someone'} blocked with ${formatBlock(declaredBlock)}`
                     : 'Block declared'
             case 'CHALLENGE_HANDLE':
                 return 'Challenge in progress...'
@@ -75,7 +84,7 @@ function GameStatus({ gameState, userId }) {
      * the timeline on the message text means a block landing while you were
      * already looking at the banner still registers as a change.
      */
-    const announcementKey = `${message}|${badge?.label ?? ''}|${challengeLoser?.id ?? ''}`
+    const announcementKey = `${message}|${badge?.label ?? ''}|${challengeLoser?.id ?? ''}|${blockerName ?? ''}`
 
     const [rootRef] = useAnimeScope((root) => {
         if (!message) return
@@ -148,7 +157,9 @@ function formatMove(move) {
 }
 
 function formatBlock(block) {
-    return block.toLowerCase().replace(/_/g, ' ')
+    // "BLOCK FOREIGN AID" -> "foreign aid". The "block" prefix is redundant on
+    // a sentence that already says who blocked, and it is already on the badge.
+    return block.toLowerCase().replace(/^block /, '').replace(/_/g, ' ')
 }
 
 export default GameStatus
