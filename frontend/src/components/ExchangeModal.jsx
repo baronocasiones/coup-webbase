@@ -24,6 +24,16 @@ const CARD_ICONS = {
  *
  * The component returns null while hidden, so it mounts fresh each time it
  * opens and the deal replays naturally.
+ *
+ * Selection is tracked by *index*, and the influence names are read off only at
+ * submit time. The deck holds three of every influence, so two identical cards
+ * in the pool are ordinary rather than exceptional, and no name-keyed scheme
+ * can tell them apart. This used to key on `card + index` and submit those
+ * strings, so the payload went out as `["CONTESSA0"]`, the backend's
+ * `Influence[...]` lookup raised, and the error was swallowed into a WS frame
+ * the client only `console.error`s — the game sat in PENDING_EXCHANGE forever.
+ * The server removes from a copy of the pool, so submitting
+ * `["ASSASSIN", "ASSASSIN"]` is correct and needs no special-casing.
  */
 function ExchangeModal({ visible, cards, currentCardCount, onSelect }) {
     const [selected, setSelected] = useState([])
@@ -71,26 +81,30 @@ function ExchangeModal({ visible, cards, currentCardCount, onSelect }) {
 
     if (!visible || !cards || cards.length === 0) return null
 
-    const toggleCard = (cardName) => {
+    const toggleCard = (index) => {
         setSelected(prev => {
-            if (prev.includes(cardName)) {
-                return prev.filter(c => c !== cardName)
+            if (prev.includes(index)) {
+                return prev.filter(i => i !== index)
             }
             if (prev.length >= currentCardCount) {
                 return prev
             }
-            return [...prev, cardName]
+            return [...prev, index]
         })
     }
 
     const handleSubmit = () => {
         if (selected.length === currentCardCount) {
-            onSelect(selected)
+            onSelect(selected.map(index => cards[index]))
             setSelected([])
         }
     }
 
-        return (
+    // Never negative. A stale refetch can momentarily hand us a pool smaller
+    // than the current hand, and "-1 cards" is worse than an imprecise count.
+    const drawnCount = Math.max(0, cards.length - currentCardCount)
+
+    return (
         <div
             className={styles.exchangeOverlay}
             ref={rootRef}
@@ -104,19 +118,34 @@ function ExchangeModal({ visible, cards, currentCardCount, onSelect }) {
                     <h3 className={styles.exchangeTitle} id="exchange-picker-title">
 Choose {currentCardCount} card{currentCardCount !== 1 ? 's' : ''} to keep</h3>
                     <p className={styles.exchangeDesc}>
-                        You drew {cards.length - currentCardCount} card{cards.length - currentCardCount !== 1 ? 's' : ''}.
+                        You drew {drawnCount} card{drawnCount !== 1 ? 's' : ''}.
                         Select {currentCardCount} to keep, the rest return to the deck.
                     </p>
                 </div>
                 <div className={styles.exchangeCards}>
                     {cards.map((card, index) => {
-                        const isSelected = selected.includes(card + index)
+                        const isSelected = selected.includes(index)
                         return (
                             <button
                                 key={index}
                                 className={`${styles.exchangeCard} ${isSelected ? styles.exchangeCardSelected : ''}`}
-                                onClick={() => toggleCard(card + index)}
+                                onClick={() => toggleCard(index)}
                                 disabled={selected.length >= currentCardCount && !isSelected}
+                                aria-pressed={isSelected}
+                                /*
+                                 * The name is part of the accessible name, but the
+                                 * cards are a set of toggle buttons, so say what
+                                 * activating one does. It also gives tests and
+                                 * drivers a stable hook: the CSS Module class
+                                 * names are substring-ambiguous, since
+                                 * `exchangeCard` is a prefix of
+                                 * `exchangeCards`, `exchangeCardIcon` and
+                                 * `exchangeCardName` alike, so a
+                                 * `[class*="exchangeCard"]` selector matches
+                                 * the container, every button and two spans per
+                                 * button.
+                                 */
+                                aria-label={`Select ${card}`}
                             >
                                 <span className={styles.exchangeCardIcon}>{CARD_ICONS[card] || '?'}</span>
                                 <span className={styles.exchangeCardName}>{card}</span>

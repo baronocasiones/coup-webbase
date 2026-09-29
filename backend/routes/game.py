@@ -5,12 +5,33 @@ from controllers.GameController import game_controller
 from models.GameStateModel import GameStateModel
 from models.UserPlayerModel import UserPlayerModel
 
+from services.GameState import GameState
 from services.GameAction import GameAction
 from services.Influence import Influence
 from services.BlockMove import BlockMove
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _exchange_cards_for(user_id: UUID) -> list[str] | None:
+    """
+    The Exchange pool (current cards + the two just drawn) for one player.
+
+    Returns None for everyone but the player who is mid-exchange. Every gate
+    here is load-bearing: this value is the player's only view of what they
+    drew, and the response is produced by ``GET /user-player`` rather than the
+    broadcast, so nothing else is watching. The client pairs it with its own
+    hand to render the picker.
+    """
+    game = game_controller.game
+    if game is None or game.state != GameState.PENDING_EXCHANGE:
+        return None
+    if game.exchange_cards is None or not game.players:
+        return None
+    if game.get_current_player().id != user_id:
+        return None
+    return [card.name for card in game.exchange_cards]
 
 
 @router.get("/game-state", response_model=GameStateModel)
@@ -36,6 +57,7 @@ def get_user_player(user_id: UUID):
         id=player.id,
         coins=player.coins,
         cards=[card.name for card in player.cards],
+        exchangeCards=_exchange_cards_for(user_id),
     )
 
 

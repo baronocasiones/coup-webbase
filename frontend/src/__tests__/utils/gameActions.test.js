@@ -134,16 +134,31 @@ describe('gameActions utils @unit', () => {
   })
 
   describe('BLOCK_REQUIRES constants', () => {
+    // Values are lists, not scalars: a block can be backed by more than one
+    // influence, and BLOCK STEAL by two.
+
     it('maps BLOCK FOREIGN AID to DUKE', () => {
-      expect(BLOCK_REQUIRES['BLOCK FOREIGN AID']).toBe('DUKE')
+      expect(BLOCK_REQUIRES['BLOCK FOREIGN AID']).toEqual(['DUKE'])
     })
 
     it('maps BLOCK ASSASSINATION to CONTESSA', () => {
-      expect(BLOCK_REQUIRES['BLOCK ASSASSINATION']).toBe('CONTESSA')
+      expect(BLOCK_REQUIRES['BLOCK ASSASSINATION']).toEqual(['CONTESSA'])
     })
 
-    it('maps BLOCK STEAL to CAPTAIN', () => {
-      expect(BLOCK_REQUIRES['BLOCK STEAL']).toBe('CAPTAIN')
+    it('maps BLOCK STEAL to both CAPTAIN and AMBASSADOR', () => {
+      // Influence.AMBASSADOR grants BlockMove.BLOCK_STEAL as well as CAPTAIN
+      // (backend/services/Influence.py). This was previously `'CAPTAIN'`,
+      // which reported an Ambassador's block as unbackable.
+      expect(BLOCK_REQUIRES['BLOCK STEAL']).toEqual(['CAPTAIN', 'AMBASSADOR'])
+    })
+
+    it('never maps a block move to a bare string', () => {
+      // A scalar would silently pass `.includes` checks in the wrong direction
+      // and break every consumer that iterates the backing influences.
+      for (const [blockMove, backable] of Object.entries(BLOCK_REQUIRES)) {
+        expect(Array.isArray(backable), `${blockMove} must map to a list`).toBe(true)
+        expect(backable.length).toBeGreaterThan(0)
+      }
     })
   })
 

@@ -367,3 +367,186 @@ class TestGameWebSocket:
             })
 
         assert game.state == GameState.WAITING_FOR_ACTION
+
+
+# ---------------------------------------------------------------------------
+# Exchange: the drawn cards must reach the exchanging player
+# ---------------------------------------------------------------------------
+
+class TestExchangeCardDelivery:
+    """
+    The exchange picker is the one screen in the game that cannot be rendered
+    from the public state, because what it shows — the cards just drawn — is
+    secret. It therefore depends on `GET /user-player` carrying them, and on
+    the client sending back plain influence names.
+
+    Both halves of that contract were missing at once, which is why the flow
+    deadlocked rather than degraded: the pool collapsed to the player's own
+    hand, and the name the client derived from that pool was not a name the
+    server could resolve.
+    """
+
+    @staticmethod
+    def _reach_pending_exchange(client, players) -> None:
+        """Drive the game to PENDING_EXCHANGE with players[0] exchanging."""
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({"action": "declare_move", "payload": {"move": "exchange"}})
+        with client.websocket_connect(f"/ws/game?user_id={players[1]['id']}") as ws:
+            ws.send_json({"action": "no_challenge"})
+        assert game.state == GameState.PENDING_EXCHANGE
+
+    def test_user_player_carries_the_drawn_cards_for_the_exchanger(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_pending_exchange(client, players)
+
+        resp = client.get(f"/user-player?user_id={players[0]['id']}")
+        assert resp.status_code == 200
+        body = resp.json()
+
+        # Pool is the hand followed by the two cards just drawn.
+        assert body["exchangeCards"] is not None
+        assert body["exchangeCards"] == [c.name for c in game.exchange_cards]
+        assert len(body["exchangeCards"]) == len(body["cards"]) + 2
+
+    def test_user_player_withholds_the_pool_from_everyone_else(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_pending_exchange(client, players)
+
+        body = client.get(f"/user-player?user_id={players[1]['id']}").json()
+
+        # The opponent must not learn what Alice drew. A bluffing game cannot
+        # afford to publish the deck's next contents.
+        assert body["exchangeCards"] is None
+        assert "exchangeCards" in body
+
+    def test_pool_is_cleared_once_the_exchange_resolves(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_pending_exchange(client, players)
+
+        pool = client.get(f"/user-player?user_id={players[0]['id']}").json()["exchangeCards"]
+        keep = pool[: len(client.get(f"/user-player?user_id={players[0]['id']}").json()["cards"])]
+
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({"action": "exchange_selection", "payload": {"cards": keep}})
+
+        assert game.state == GameState.WAITING_FOR_ACTION
+        after = client.get(f"/user-player?user_id={players[0]['id']}").json()
+        assert after["exchangeCards"] is None
+        assert after["cards"] == keep
+
+    def test_public_game_state_never_carries_the_drawn_cards(self, client):
+        # PlayerModel deliberately omits `cards`; the broadcast is hand-blind by
+        # design. The pool must not become the one place that breaks it.
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_pending_exchange(client, players)
+
+        state = client.get("/game-state").json()
+
+        assert "exchangeCards" not in state
+        for player in state["playersState"]:
+            assert "cards" not in player
+
+    def test_selection_built_from_the_client_visible_pool_advances_the_game(self, client):
+        """
+        The regression guard for the deadlock.
+
+        This mirrors what the browser does end to end: read the pool off
+        `/user-player`, keep as many cards as the hand already holds, send those
+        names. The pre-existing `test_exchange_selection_action` read
+        `game.exchange_cards` straight off the server object, so it fed the
+        resolver well-formed names the client never actually produced — which is
+        exactly why the suite was green while the screen was stuck.
+        """
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_pending_exchange(client, players)
+
+        mine = client.get(f"/user-player?user_id={players[0]['id']}").json()
+        pool = mine["exchangeCards"]
+        hand_size = len(mine["cards"])
+
+        assert pool is not None, "/user-player must expose the pool or the picker is empty"
+        assert len(pool) == hand_size + 2
+
+        deck_before_selection = game.get_cards_in_deck()
+
+        # The picker offers hand-first, drawn-second, so the first `hand_size`
+        # entries are a legal choice.
+        keep = pool[:hand_size]
+
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({"action": "exchange_selection", "payload": {"cards": keep}})
+
+        assert game.state == GameState.WAITING_FOR_ACTION
+        assert game.exchange_cards is None
+
+        # The two cards that were not kept went back to the deck rather than
+        # being destroyed, so the count rises by exactly two.
+        assert game.get_cards_in_deck() == deck_before_selection + 2
+
+        # And the hand is now the cards the player chose, in that order.
+        hand = client.get(f"/user-player?user_id={players[0]['id']}").json()
+        assert hand["cards"] == keep
+
+    def test_a_mangled_card_name_is_rejected_rather_than_silently_accepted(self, client):
+        """
+        The deadlock's exact payload.
+
+        `ExchangeModal` used to key selection on `card + index` and submit those
+        strings. The handler catches broadly and answers with an `error` frame,
+        so the failure mode is silence unless it is asserted here.
+        """
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._reach_pending_exchange(client, players)
+
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({
+                "action": "exchange_selection",
+                "payload": {"cards": ["ASSASSIN0"]},
+            })
+            reply = ws.receive_json()
+
+        assert "error" in reply
+        # And the game is still waiting — the failure is loud on the wire even
+        # though the client only logs it.
+        assert game.state == GameState.PENDING_EXCHANGE
+
+
+# ---------------------------------------------------------------------------
+# Block identity has to be published
+# ---------------------------------------------------------------------------
+
+class TestBlockerIdentityPublished:
+    """
+    During BLOCK_DECLARED, `currentTurn` still names the player whose action was
+    blocked, because `currentTurnIndex` only moves in `next_turn()`. So the turn
+    alone cannot separate the actor from the rest of the table, and the client
+    has no way to exclude the blocker unless the server says who blocked.
+    """
+
+    def test_blocker_id_is_published_while_a_block_stands(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({"action": "declare_move", "payload": {"move": "foreign aid"}})
+        with client.websocket_connect(f"/ws/game?user_id={players[1]['id']}") as ws:
+            ws.send_json({"action": "block", "payload": {"move": "block foreign aid"}})
+
+        assert game.state == GameState.BLOCK_DECLARED
+
+        state = client.get("/game-state").json()
+        assert state["blockerId"] == players[1]["id"]
+        # The blocker is not the current player — that is the whole point.
+        assert state["currentTurn"]["id"] == players[0]["id"]
+
+    def test_blocker_id_is_cleared_when_the_turn_advances(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({"action": "declare_move", "payload": {"move": "foreign aid"}})
+        with client.websocket_connect(f"/ws/game?user_id={players[1]['id']}") as ws:
+            ws.send_json({"action": "block", "payload": {"move": "block foreign aid"}})
+        with client.websocket_connect(f"/ws/game?user_id={players[0]['id']}") as ws:
+            ws.send_json({"action": "no_challenge"})
+
+        assert game.state == GameState.WAITING_FOR_ACTION
+        assert client.get("/game-state").json()["blockerId"] is None

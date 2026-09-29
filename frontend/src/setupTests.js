@@ -1,5 +1,12 @@
 import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import { vi, beforeEach } from 'vitest'
+
+// Reset the socket registry between tests so one test's frames cannot be
+// asserted by the next. Registered before the WebSocket is installed below;
+// the hook body runs at test time, by which point the class is in place.
+beforeEach(() => {
+  if (window.WebSocket) window.WebSocket.instances.length = 0
+})
 
 // Mock sessionStorage
 const storageMock = (() => {
@@ -23,6 +30,15 @@ class MockWebSocket {
   static CLOSING = 2
   static CLOSED = 3
 
+  // Every socket built during a test, oldest first.
+  //
+  // Without this the frames a component sends are unreachable: `new
+  // WebSocket(...)` is constructed inside the component and never returned, so
+  // `_sent` was write-only. That is how the Exchange bug shipped — the payload
+  // went out as `["CONTESSA0"]`, the backend's `Influence[...]` lookup raised,
+  // and nothing in the suite ever held the frame that would have shown it.
+  static instances = []
+
   constructor(url) {
     this.url = url
     this.readyState = MockWebSocket.OPEN
@@ -31,6 +47,12 @@ class MockWebSocket {
     this.onmessage = null
     this.onerror = null
     this._sent = []
+    MockWebSocket.instances.push(this)
+  }
+
+  /** Parsed frames this socket has sent. Convenience over `_sent`. */
+  get sentMessages() {
+    return this._sent.map((raw) => JSON.parse(raw))
   }
 
   send(data) {

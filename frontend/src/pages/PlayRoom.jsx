@@ -19,7 +19,7 @@ import {
     broadcastExchangeSelection,
     broadcastInfluenceSelection,
     broadcastChallengeSelection,
-    BLOCKABLE_ACTIONS,
+    ACTION_REQUIRES,
 } from "../utils/gameActions.js";
 import { buildWsUrl } from "../utils/ws.js";
 import Opponents from "../components/Opponents.jsx";
@@ -115,13 +115,8 @@ function PlayRoom() {
     const hasCard = useCallback(
         (action) => {
             if (!userPlayer?.cards) return false
-            const required = {
-                TAX: "DUKE",
-                ASSASSINATE: "ASSASSIN",
-                STEAL: "CAPTAIN",
-                EXCHANGE: "AMBASSADOR",
-            }
-            return userPlayer.cards.includes(required[action])
+            const required = ACTION_REQUIRES[action]
+            return required ? userPlayer.cards.includes(required) : false
         },
         [userPlayer],
     );
@@ -273,7 +268,32 @@ function PlayRoom() {
     const showExchangeModal = gameStateValue === "PENDING_EXCHANGE" && isMyTurn
     const isChallengeLoser = gameStateValue === "CHALLENGE_HANDLE" && gameState?.challengeLoser?.id === userId
     const showInfluencePicker = (gameStateValue === "INFLUENCE_SELECTION_PENDING" && isMyTurn) || isChallengeLoser
-    const showChallengePanel = (gameStateValue === "ACTION_DECLARED" || gameStateValue === "BLOCK_DECLARED") && !isMyTurn
+
+    /*
+     * Who gets to answer a declared move, per state.
+     *
+     * ACTION_DECLARED — everyone except the player who declared it. They can
+     * challenge it, block it, or pass.
+     *
+     * BLOCK_DECLARED — only the player whose action was blocked. This is the
+     * inverse of the case above, and inverting it is the whole point:
+     * `currentTurn` does not move until the block resolves, so during
+     * BLOCK_DECLARED it still names the *actor*. A single `!isMyTurn` rule
+     * therefore hides the panel from the one player who legally decides
+     * whether to challenge the block, and shows it to the blocker — who cannot
+     * challenge their own block and who could otherwise resolve their own
+     * bluff with "Accept Block".
+     *
+     * The server also publishes `blockerId` for this, and `ChallengePanel`
+     * uses it to refuse the blocker directly. Two mechanisms, on purpose: this
+     * predicate decides who is *offered* the response, and the blocker check
+     * makes it structurally impossible for the blocker to answer even if a
+     * future state or refetch produces an unexpected pairing.
+     */
+    const showChallengePanel =
+        gameStateValue === "ACTION_DECLARED" ? !isMyTurn
+            : gameStateValue === "BLOCK_DECLARED" ? isMyTurn
+                : false
 
     return (
         <div className={styles.playRoom} ref={rootRef}>
@@ -308,16 +328,21 @@ function PlayRoom() {
                     {/* Game Status */}
                     <GameStatus gameState={gameState} userId={userId} />
 
-                    {/* Challenge Panel */}
-                    {showChallengePanel && (
-                        <ChallengePanel
-                            gameState={gameState}
-                            userId={userId}
-                            onChallenge={handleChallenge}
-                            onNoChallenge={handleNoChallenge}
-                            onBlock={handleBlock}
-                        />
-                    )}
+                    {/* Challenge Panel — `visible` is the only gate. An outer
+                        `{showChallengePanel && ...}` wrapper alongside it would
+                        be the same rule enforced twice, which is how this bug
+                        got in: the predicate and the component's own
+                        `isMyTurn` check drifted apart because there were two
+                        copies to keep in step. */}
+                    <ChallengePanel
+                        visible={showChallengePanel}
+                        gameState={gameState}
+                        userId={userId}
+                        cards={userPlayer?.cards || []}
+                        onChallenge={handleChallenge}
+                        onNoChallenge={handleNoChallenge}
+                        onBlock={handleBlock}
+                    />
 
                     {/* Opponents */}
                     <Opponents
@@ -476,11 +501,24 @@ function PlayRoom() {
                 />
             </Modal>
 
-            {/* Exchange Modal */}
+            {/* Exchange Modal
+                *
+                * `exchangeCards` is the full pool — this player's current cards
+                * followed by the two just drawn — and the server only sends it
+                * to the exchanging player, over the private `/user-player`
+                * channel. It used to be read from `gameState.exchangeCards`,
+                * a field the backend has never sent, so the `||` fallback
+                * always won and the modal offered the player's own hand back to
+                * them: "You drew 0 cards", one selectable card, nothing to swap.
+                *
+                * The hand fallback below is a safety net for the window where
+                * the query is refetching. It should be unreachable — the server
+                * omits the pool for every player who is not mid-exchange.
+                */}
             <ExchangeModal
                 visible={showExchangeModal}
-                cards={gameState?.exchangeCards || userPlayer?.cards || []}
-                currentCardCount={userPlayer?.cards?.length || 2}
+                cards={userPlayer?.exchangeCards || userPlayer?.cards || []}
+                currentCardCount={userPlayer?.cards?.length ?? 0}
                 onSelect={handleExchangeSelect}
             />
 

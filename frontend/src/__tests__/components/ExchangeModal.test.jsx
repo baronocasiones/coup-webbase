@@ -95,7 +95,61 @@ describe('ExchangeModal component @unit', () => {
 
     fireEvent.click(screen.getByText('Confirm Selection'))
     expect(onSelect).toHaveBeenCalledTimes(1)
-    expect(onSelect).toHaveBeenCalledWith(['DUKE0', 'ASSASSIN1'])
+    // Plain influence names. This assertion used to expect
+    // `['DUKE0', 'ASSASSIN1']` — selection was keyed on `card + index` and
+    // those strings were submitted verbatim, so the payload reached the
+    // backend's `Influence[...]` lookup and raised. The error came back as a WS
+    // frame the client only `console.error`s, and the game stayed in
+    // PENDING_EXCHANGE forever. The test was pinning the bug in place.
+    expect(onSelect).toHaveBeenCalledWith(['DUKE', 'ASSASSIN'])
+  })
+
+  it('submits duplicate influences in the pool as separate cards', () => {
+    // The court deck holds three of every influence, so an identical pair in
+    // the pool is routine. Selection is keyed by index precisely so this
+    // works; a name-keyed scheme could not tell the two apart.
+    const onSelect = vi.fn()
+    render(
+      <ExchangeModal visible={true} cards={['ASSASSIN', 'ASSASSIN']} currentCardCount={2} onSelect={onSelect} />
+    )
+
+    const buttons = screen.getAllByText('ASSASSIN')
+    fireEvent.click(buttons[0])
+    fireEvent.click(buttons[1])
+    fireEvent.click(screen.getByText('Confirm Selection'))
+
+    expect(onSelect).toHaveBeenCalledWith(['ASSASSIN', 'ASSASSIN'])
+  })
+
+  it('toggles a card off again when clicked twice', () => {
+    const onSelect = vi.fn()
+    render(
+      <ExchangeModal visible={true} cards={['DUKE', 'ASSASSIN', 'CAPTAIN']} currentCardCount={2} onSelect={onSelect} />
+    )
+
+    fireEvent.click(screen.getByText('DUKE'))
+    expect(screen.getByText('1 / 2 selected')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('DUKE'))
+    expect(screen.getByText('0 / 2 selected')).toBeInTheDocument()
+  })
+
+  it('reports the drawn count as pool size minus current hand size', () => {
+    render(
+      <ExchangeModal visible={true} cards={['DUKE', 'ASSASSIN', 'CAPTAIN']} currentCardCount={2} onSelect={vi.fn()} />
+    )
+
+    expect(screen.getByText(/You drew 1 card\./)).toBeInTheDocument()
+  })
+
+  it('never reports a negative drawn count', () => {
+    // A stale refetch can momentarily hand us a pool smaller than the hand.
+    // "-1 cards" is a worse failure than a loose count.
+    render(
+      <ExchangeModal visible={true} cards={['DUKE']} currentCardCount={2} onSelect={vi.fn()} />
+    )
+
+    expect(screen.getByText(/You drew 0 cards\./)).toBeInTheDocument()
   })
 
   it('confirm button is disabled when not enough cards selected', () => {
