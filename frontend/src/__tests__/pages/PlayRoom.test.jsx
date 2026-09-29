@@ -159,11 +159,26 @@ describe('PlayRoom page @integration', () => {
     })
   })
 
-  it('renders the Menu button', async () => {
+  it('renders the header stats and no dead Menu control', async () => {
     renderPlayRoom()
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Menu' })).toBeInTheDocument()
+      expect(screen.getByText('Current Turn')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Players Left')).toBeInTheDocument()
+    expect(screen.getByText('Cards in Deck')).toBeInTheDocument()
+
+    // The "Menu" button had no onClick and no destination. A control that
+    // looks actionable but does nothing is worse than no control at all.
+    expect(screen.queryByRole('button', { name: 'Menu' })).not.toBeInTheDocument()
+  })
+
+  it('labels the player\'s own influences', async () => {
+    renderPlayRoom()
+
+    await waitFor(() => {
+      expect(screen.getByText('Your Influences')).toBeInTheDocument()
     })
   })
 

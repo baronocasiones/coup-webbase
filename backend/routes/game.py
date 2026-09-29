@@ -121,6 +121,17 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                 try:
                     challenger_id = UUID(payload.get("challengerId")) if payload.get("challengerId") else user_id
                     loser_id = game_controller.game.get_challenge_loser(challenger_id)
+                    # Reply to the challenger first. `broadcast()` deliberately
+                    # excludes the sender, so without this the player who
+                    # challenged received nothing at all: the frontend's
+                    # `challenge_result` handler (PlayRoom.jsx) never fired and
+                    # their `challenge_selection` step could not begin. It also
+                    # hung the test suite, since the client waited forever on a
+                    # message that was never sent.
+                    await websocket.send_json({
+                        "action": "challenge_result",
+                        "loser_id": str(loser_id) if loser_id else None,
+                    })
                     # Broadcast updated game state to all OTHER players
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)

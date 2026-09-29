@@ -7,6 +7,10 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { getPlayers, removePlayer, changeReadyState } from '../services/player'
 import axios from '../axios'
 import Loader from '../components/Loader'
+import { buildWsUrl } from '../utils/ws'
+import { animate, createTimeline, stagger } from 'animejs'
+import { useAnimeScope } from '../hooks/useAnimeScope'
+import { DURATION, EASE, STAGGER, selAll } from '../utils/motion'
 
 const MAX_PLAYERS = 6
 
@@ -20,6 +24,14 @@ function Lobby() {
     const navigate = useNavigate()
     const userId = sessionStorage.getItem('userId')
     const gameWs = useRef(null)
+
+    // Row elements by player id, plus snapshots of the state we animate
+    // *transitions* of. The lobby is a waiting room: the interesting moments
+    // are not the first paint, they are the seat filling up and people
+    // tapping themselves ready.
+    const rowRefs = useRef({})
+    const previousReady = useRef({})
+    const previousCount = useRef(0)
 
     const { data: players, isLoading: isPlayersLoading, isError: isPlayersError } = useQuery({
         queryKey: ['players'],
@@ -47,6 +59,100 @@ function Lobby() {
     const allReady = Array.isArray(players) && players?.every(player => player.isReady)
     const canStartGame = isHost && allReady && players?.length >= 2
 
+    /**
+     * Opening beat. The two panels slide in from their own sides, which reads
+     * as the table being laid out rather than content being dumped on screen,
+     * then the seats fill in top to bottom.
+     */
+    const [rootRef, , play] = useAnimeScope((root) => {
+        const tl = createTimeline({ defaults: { ease: EASE.entrance } })
+
+        tl.add(selAll(root, styles.playerListContainer), {
+            opacity: { from: 0 },
+            translateX: { from: -20 },
+            duration: DURATION.slow,
+        })
+            .add(selAll(root, styles.rightPanel), {
+                opacity: { from: 0 },
+                translateX: { from: 20 },
+                duration: DURATION.slow,
+            }, 0)
+            .add(selAll(root, styles.player), {
+                opacity: { from: 0 },
+                translateY: { from: 10 },
+                duration: DURATION.normal,
+                delay: stagger(STAGGER.list),
+            }, '+=120')
+            // Empty seats fade in as ghosts rather than flying in — they are
+            // absence, not arrival, and should not compete for attention.
+            .add(selAll(root, styles.emptySlot), {
+                opacity: { from: 0 },
+                duration: DURATION.normal,
+                delay: stagger(30),
+            }, '+=160')
+        // Both panels only render once the player query resolves; before that
+        // this page is a <Loader /> with no root to animate inside, so the
+        // loading flag has to be a dependency for the entrance to ever run.
+    }, [isPlayersLoading])
+
+    /**
+     * Someone took a seat. Only the new row animates — the existing table
+     * should not replay its entrance because the room got fuller.
+     */
+    useEffect(() => {
+        if (!Array.isArray(players) || players.length === 0) return
+
+        const count = players.length
+        const grew = previousCount.current !== 0 && count > previousCount.current
+        previousCount.current = count
+        if (!grew) return
+
+        const row = rowRefs.current[players[count - 1].id]
+        if (!row) return
+
+        play(() =>
+            animate(row, {
+                opacity: [{ from: 0 }, { to: 1 }],
+                translateX: [{ from: -16 }, { to: 0 }],
+                duration: DURATION.normal,
+                ease: EASE.entrance,
+            })
+        )
+    }, [players, play])
+
+    /**
+     * A player flipped to ready. A single bright pulse on that row — enough to
+     * be noticed across a room, not enough to be the loudest thing on screen.
+     * Filter brightness is used rather than a colour so it stays correct
+     * against the gold and neutral row treatments alike (and because
+     * brightening moves text further from the contrast threshold, not closer).
+     *
+     * Only fires on becoming ready, not on un-readying — a row dropping back
+     * out of ready should not get the same celebratory brightening.
+     */
+    useEffect(() => {
+        if (!Array.isArray(players)) return
+
+        players.forEach((player) => {
+            const was = previousReady.current[player.id]
+            previousReady.current[player.id] = player.isReady
+
+            if (was === undefined || was === true || !player.isReady) return
+
+            const row = rowRefs.current[player.id]
+            if (!row) return
+
+            play(() =>
+                animate(row, {
+                    filter: [{ to: 'brightness(1.35)' }, { to: 'brightness(1)' }],
+                    scale: [{ to: 1.02 }, { to: 1 }],
+                    duration: DURATION.slow,
+                    ease: EASE.entrance,
+                })
+            )
+        })
+    }, [players, play])
+
     useEffect(() => {
         if (!isPlayersLoading && !userId) {
             navigate('/')
@@ -67,9 +173,7 @@ function Lobby() {
     }, [userId, isPlayersLoading, navigate])
 
     useEffect(() => {
-        const wsHost = import.meta.env.WS_HOST || 'localhost';
-        const wsPort = import.meta.env.WS_PORT || '8000';
-        gameWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/lobby?user_id=${userId}`)
+        gameWs.current = new WebSocket(buildWsUrl('/ws/lobby', userId))
 
         gameWs.current.onmessage = (event) => {
             try {
@@ -143,13 +247,28 @@ function Lobby() {
     const emptySlots = Math.max(0, MAX_PLAYERS - (players?.length || 0))
 
     return (
-        <div className={styles.lobbyContainer}>
+        <div className={styles.lobbyContainer} ref={rootRef}>
             {/* Left panel: player list and game settings */}
             <div className={styles.playerListContainer}>
                 <h2 className={styles.panelTitle}>Players</h2>
-                <div className={styles.playerList}>
+                <div
+                    className={styles.playerList}
+                    /*
+                     * Joins and ready-ups land over the lobby WebSocket. The
+                     * entrance and the ready pulse are the visual channel for
+                     * those events; this is the equivalent for anyone who
+                     * cannot use them.
+                     */
+                    role="log"
+                    aria-live="polite"
+                    aria-relevant="additions"
+                >
                     {players && players.map((player) => (
-                        <div className={styles.player} key={player?.id}>
+                        <div
+                            className={styles.player}
+                            key={player?.id}
+                            ref={(el) => { rowRefs.current[player?.id] = el }}
+                        >
                             <div className={styles.avatar}>
                                 {getInitials(player?.name)}
                             </div>
@@ -173,23 +292,14 @@ function Lobby() {
                         </div>
                     ))}
                 </div>
-                <div className={styles.gameSettings}>
-                    <h3 className={styles.gameSettingsTitle}>Game Settings</h3>
-                    <div className={styles.settingContainer}>
-                        <div className={styles.settingItem}>
-                            <span className={styles.settingLabel}>Max Players</span>
-                            <span className={styles.settingValue}>6</span>
-                        </div>
-                        <div className={styles.settingItem}>
-                            <span className={styles.settingLabel}>Starting Coins</span>
-                            <span className={styles.settingValue}>2</span>
-                        </div>
-                        <div className={styles.settingItem}>
-                            <span className={styles.settingLabel}>Game Mode</span>
-                            <span className={styles.settingValue}>Classic</span>
-                        </div>
-                    </div>
-                </div>
+                {/*
+                 * The "Game Settings" panel that used to sit here listed Max
+                 * Players 6 / Starting Coins 2 / Game Mode Classic — three
+                 * hardcoded constants, presented as if they were configurable.
+                 * It occupied ~200px of the panel and implied a settings screen
+                 * that does not exist. Removed; the reclaimed space goes to the
+                 * player list, which was clipping real players.
+                 */}
             </div>
 
             {/* Right panel: chat box, action buttons, and status label */}

@@ -93,7 +93,17 @@ body {
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow: hidden;
+    /*
+     * Deliberately NOT `overflow: hidden`. Because <html> has no overflow of
+     * its own, a value here propagates to the viewport and silently removes
+     * the scrollbar — so any page that outgrows the viewport became
+     * permanently unreachable rather than scrollable. On PlayRoom that meant
+     * 90px of the action bar was lost on any display under ~730px tall.
+     * Horizontal overflow is still suppressed, which is the part that was
+     * actually wanted.
+     */
+    overflow-x: hidden;
+    overflow-y: auto;
     min-height: 100vh;
 }
 
@@ -131,4 +141,51 @@ h1, h2, h3, h4, h5, h6 {
 :focus-visible {
     outline: 2px solid var(--gold);
     outline-offset: 2px;
+}
+
+/* ============================================
+   Utilities
+   ============================================ */
+
+/*
+ * Visually hidden, still available to screen readers.
+ * `clip-path` rather than the deprecated `clip: rect()`.
+ * Used where a value is conveyed twice — once animated for sighted users,
+ * once static for assistive tech — which must not be read out twice.
+ */
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ============================================
+   Reduced motion
+   ============================================
+   anime.js animations are gated in JS by `prefersReducedMotion()` — see
+   utils/motion.js and hooks/useAnimeScope.js. Those that remain in CSS are
+   the continuous ambient loops (status pulse, forced-coup glow, chat
+   skeleton), which have no JS equivalent to gate. This is the second half of
+   the same contract, so honouring the OS setting is complete rather than
+   partial.
+
+   WCAG 2.3.3 Animation from Interactions: motion triggered by interaction
+   may be disabled, but that preference is advisory and must be honoured when
+   the user sets it at the OS level. */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

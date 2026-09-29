@@ -116,16 +116,22 @@ describe('Lobby page @integration', () => {
     })
   })
 
-  it('renders game settings panel', async () => {
+  it('does not render the removed game settings panel', async () => {
+    // The panel used to list Max Players 6 / Starting Coins 2 / Game Mode
+    // Classic — hardcoded constants dressed up as settings. It was removed
+    // because it implied configurability that does not exist. This guards
+    // against it being reintroduced.
     getPlayers.mockResolvedValue([])
     renderLobby()
 
     await waitFor(() => {
-      expect(screen.getByText('Game Settings')).toBeInTheDocument()
-      expect(screen.getByText('Max Players')).toBeInTheDocument()
-      expect(screen.getByText('Starting Coins')).toBeInTheDocument()
-      expect(screen.getByText('Game Mode')).toBeInTheDocument()
+      expect(screen.getByText('Players')).toBeInTheDocument()
     })
+
+    expect(screen.queryByText('Game Settings')).not.toBeInTheDocument()
+    expect(screen.queryByText('Max Players')).not.toBeInTheDocument()
+    expect(screen.queryByText('Starting Coins')).not.toBeInTheDocument()
+    expect(screen.queryByText('Game Mode')).not.toBeInTheDocument()
   })
 
   it('renders chat box with lobby header', async () => {

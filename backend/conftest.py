@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from api import app
+from api import app, game_manager, chat_manager
 from services.Card import Card
 from services.GameState import GameState
 from controllers.LobbyController import lobby_controller
@@ -63,4 +63,18 @@ def reset_game_state():
     game_controller.game = None
     game_controller.game_manager = None
 
+    # Drop connections held by the module-level ConnectionManagers.
+    #
+    # These outlive any individual test, and a `TestClient` WebSocket that has
+    # left its `with` block is not a usable peer. A later `broadcast()` would
+    # try to `send_json` on those dead sockets, which is what made the
+    # WebSocket integration tests hang intermittently and bled state into
+    # unrelated files. Cleared on both sides of the test so a test that leaves a
+    # connection open cannot poison the next one.
+    game_manager.active_connections.clear()
+    chat_manager.active_connections.clear()
+
     yield
+
+    game_manager.active_connections.clear()
+    chat_manager.active_connections.clear()

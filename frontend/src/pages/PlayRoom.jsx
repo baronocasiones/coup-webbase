@@ -21,8 +21,13 @@ import {
     broadcastChallengeSelection,
     BLOCKABLE_ACTIONS,
 } from "../utils/gameActions.js";
+import { buildWsUrl } from "../utils/ws.js";
 import Opponents from "../components/Opponents.jsx";
 import Modal from "../components/Modal.jsx";
+import { useAnimeScope } from "../hooks/useAnimeScope";
+import { useCountUp } from "../hooks/useCountUp";
+import { animate, stagger } from "animejs";
+import { DURATION, EASE, STAGGER } from "../utils/motion";
 
 const TARGETED_MOVES = ["COUP", "ASSASSINATE", "STEAL"];
 
@@ -30,6 +35,7 @@ function PlayRoom() {
     const userId = sessionStorage.getItem("userId");
     const navigate = useNavigate();
     const gameWs = useRef(null);
+    const userCardsRef = useRef(null);
     const queryClient = useQueryClient();
     const [isChoosingTarget, setIsChoosingTarget] = useState(false);
     const [pendingAction, setPendingAction] = useState(null);
@@ -63,6 +69,47 @@ function PlayRoom() {
         () => currentTurn?.id === userId,
         [currentTurn, userId],
     );
+
+    // Your own pile. Snapping it hides the most-watched event in the game.
+    const displayedCoins = useCountUp(userPlayer?.coins);
+
+    // Identity of the hand, not the array reference — the game state refetches
+    // after every action and hands back a fresh array each time, so keying on
+    // the cards themselves would re-deal the hand on every poll.
+    const handKey = (userPlayer?.cards ?? []).join(",");
+
+    // Scope only, no mount animation: PlayRoom is one long-lived page that
+    // re-renders on every state change, and the per-surface components below it
+    // each own their entrance. The root is the user panel, which is the only
+    // subtree this scope's own animations target.
+    const [rootRef, , play] = useAnimeScope(undefined, [
+        gameStateIsLoading,
+        userPlayerIsLoading,
+    ]);
+
+    /**
+     * Re-deal the hand whenever it actually changes — drawn in Exchange, or a
+     * card lost to a challenge. Keyed on the card names so a refetch that
+     * returns the same hand does not replay it.
+     */
+    useEffect(() => {
+        const container = userCardsRef.current;
+        if (!container || container.children.length === 0) return;
+
+        play(() =>
+            // Spread out of the live HTMLCollection so the target list is a
+            // stable snapshot rather than something the DOM can mutate
+            // mid-animation.
+            animate([...container.children], {
+                opacity: [{ from: 0 }, { to: 1 }],
+                rotateY: [{ from: -70 }, { to: 0 }],
+                translateY: [{ from: 14 }, { to: 0 }],
+                duration: DURATION.normal,
+                ease: EASE.entrance,
+                delay: stagger(STAGGER.card, { from: "last" }),
+            })
+        );
+    }, [handKey, play]);
 
     /** Check if player has the required card for an action */
     const hasCard = useCallback(
@@ -179,11 +226,7 @@ function PlayRoom() {
 
     // WebSocket connection
     useEffect(() => {
-        const wsHost = import.meta.env.WS_HOST || "localhost";
-        const wsPort = import.meta.env.WS_PORT || "8000";
-        gameWs.current = new WebSocket(
-            `ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`,
-        );
+        gameWs.current = new WebSocket(buildWsUrl('/ws/game', userId))
 
         gameWs.current.onmessage = (event) => {
             try {
@@ -207,9 +250,7 @@ function PlayRoom() {
             // Reconnect on error
             setTimeout(() => {
                 if (gameWs.current?.readyState === WebSocket.CLOSED) {
-                    gameWs.current = new WebSocket(
-                        `ws://${wsHost}:${wsPort}/ws/game?user_id=${userId}`,
-                    );
+                    gameWs.current = new WebSocket(buildWsUrl('/ws/game', userId))
                 }
             }, 2000);
         };
@@ -235,8 +276,10 @@ function PlayRoom() {
     const showChallengePanel = (gameStateValue === "ACTION_DECLARED" || gameStateValue === "BLOCK_DECLARED") && !isMyTurn
 
     return (
-        <>
-            {/* Header */}
+        <div className={styles.playRoom} ref={rootRef}>
+            {/* Header — three tracks so the turn indicator and the stats sit
+                on a shared grid. The right cell is deliberately empty; the dead
+                "Menu" button that used to sit there had no handler at all. */}
             <div className={styles.header}>
                 <div className={styles.currentTurnContainer}>
                     <label className={styles.turnLabel}>Current Turn</label>
@@ -256,7 +299,7 @@ function PlayRoom() {
                         <span className={styles.statValue}>{gameState?.cardsInDeck ?? 0}</span>
                     </div>
                 </div>
-                <PrimaryButton text="Menu" variant="secondary" width="auto" />
+                <div className={styles.headerSpacer} />
             </div>
 
             {/* Main content */}
@@ -287,7 +330,7 @@ function PlayRoom() {
                 <ChatBox header="Game Log" withSubmission={false} />
             </div>
 
-            {/* User panel */}
+            {/* User panel — the grid's final row */}
             <div className={styles.userUIContainer}>
                 {/* Left: User Info Section */}
                 <div className={styles.userInfo}>
@@ -301,10 +344,24 @@ function PlayRoom() {
                             <span className={styles.userStatus}>Active</span>
                         </div>
                     </div>
+                    {/*
+                     * The coin total is conveyed twice, deliberately.
+                     *
+                     * `displayedCoins` is the tweened value: it is what the eye
+                     * reads as the pile climbs, and it is hidden from assistive
+                     * tech so a screen reader is never walked through the ~30
+                     * intermediate frames. The visually-hidden `role="status"`
+                     * alongside it carries the settled value, which is what
+                     * actually gets announced. Same number, two channels, no
+                     * double-reading and no announced animation frames.
+                     */}
                     <div className={styles.userCoins}>
-                        <span className={styles.coinIcon}></span>
-                        <span className={styles.userCoinValue}>
-                            {userPlayer.coins} coins
+                        <span className={styles.coinIcon} aria-hidden="true"></span>
+                        <span className={styles.userCoinValue} aria-hidden="true">
+                            {displayedCoins} coins
+                        </span>
+                        <span className="srOnly" role="status" aria-live="polite" aria-atomic="true">
+                            You have {userPlayer.coins} coins
                         </span>
                     </div>
                 </div>
@@ -312,15 +369,18 @@ function PlayRoom() {
                 {/* Center: Cards and Actions Section */}
                 <div className={styles.userCenterSection}>
                     {/* Cards */}
-                    <div className={styles.userCardsContainer}>
-                        {userPlayer.cards.map((card, index) => (
-                            <span key={index} className={styles.userCard}>
-                                <span className={styles.userCardIcon}>
-                                    {card === "DUKE" ? "👑" : card === "ASSASSIN" ? "🗡️" : card === "CAPTAIN" ? "⚓" : card === "AMBASSADOR" ? "📜" : "🛡️"}
+                    <div className={styles.influencesBlock}>
+                        <p className={styles.influencesLabel}>Your Influences</p>
+                        <div className={styles.userCardsContainer} ref={userCardsRef}>
+                            {userPlayer.cards.map((card, index) => (
+                                <span key={index} className={styles.userCard}>
+                                    <span className={styles.userCardIcon}>
+                                        {card === "DUKE" ? "👑" : card === "ASSASSIN" ? "🗡️" : card === "CAPTAIN" ? "⚓" : card === "AMBASSADOR" ? "📜" : "🛡️"}
+                                    </span>
+                                    <h4 className={styles.userCardName}>{card}</h4>
                                 </span>
-                                <h4 className={styles.userCardName}>{card}</h4>
-                            </span>
-                        ))}
+                            ))}
+                        </div>
                     </div>
 
                     {/* Actions */}
@@ -433,7 +493,7 @@ function PlayRoom() {
 
             {/* Game Over Screen */}
             <GameOver gameState={gameState} userId={userId} />
-        </>
+        </div>
     );
 }
 

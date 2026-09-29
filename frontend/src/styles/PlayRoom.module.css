@@ -2,19 +2,45 @@
    PlayRoom — Luxury Casino Theme
    ============================================ */
 
+/*
+ * Layout is a single three-row grid: header / table / player panel.
+ *
+ * This used to be three independently positioned pieces — a `position: fixed`
+ * header, a `position: fixed` bottom player panel, and a main area padded
+ * `80px … 280px` to guess how tall the other two were. Those magic numbers were
+ * the source of two separate problems: the table reserved a fixed 280px band
+ * regardless of the real panel height (so the board floated in dead space),
+ * and when the viewport was shorter than header + board + panel the overflow
+ * landed on a body that could not scroll.
+ *
+ * The grid sizes the rows to their content and gives the table whatever is
+ * left, so there is nothing to guess and nothing to clip.
+ */
+.playRoom {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
 /* ── Header ──────────────────────────────────────────────── */
 .header {
-    display: flex;
+    display: grid;
+    /*
+     * Three tracks so the turn indicator and the stats sit on a shared
+     * horizontal grid with equal outer margins. Previously they were free-floating
+     * flex children with `space-between`, which read as two unrelated islands.
+     */
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
+    gap: var(--space-6, 24px);
     padding: var(--space-4, 16px) var(--space-10, 40px);
     background: var(--bg-primary, #0E0E14);
     border-bottom: 1px solid rgba(201, 168, 76, 0.1);
-    width: 100vw;
-    box-sizing: border-box;
-    position: fixed;
-    top: 0;
-    z-index: 10;
+}
+
+.headerSpacer {
+    min-width: 0;
 }
 
 .currentTurnContainer {
@@ -77,41 +103,53 @@
 
 /* ── Layout ──────────────────────────────────────────────── */
 .mainContainer {
-    display: flex;
-    padding: 80px var(--space-10, 40px) 280px;
-    gap: var(--space-8, 32px);
+    display: grid;
+    /*
+     * The table takes the slack; the log is a fixed, narrower column. Giving
+     * the table `1fr` (rather than letting a flex child grow) stops the log
+     * from being stretched by its own content, which is what left it as a tall
+     * empty rectangle beside a cramped board.
+     */
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--space-6, 24px);
+    padding: var(--space-6, 24px) var(--space-10, 40px);
     box-sizing: border-box;
-    width: 100vw;
+    /* `stretch`, not `start`: the log should occupy the full column height so
+       the table area reads as one surface rather than a board floating above an
+       empty band. */
+    align-items: stretch;
+    min-height: 0;
 }
 
 .gameContainer {
     display: flex;
     flex-direction: column;
     gap: var(--space-4, 16px);
-    flex: 1;
+    min-width: 0;
+    /* Centre the board in whatever vertical room the grid hands it, so spare
+       space is distributed around the content instead of pooling below it. */
+    justify-content: center;
 }
 
 /* ── Opponent players ────────────────────────────────────── */
 .playersContainer {
-    display: flex;
-    flex-wrap: wrap;
+    /*
+     * A centred, self-sizing grid rather than a left-aligned wrapping flex row.
+     * The cards were 140px wide and packed against the left edge of a much
+     * wider board, so a row of four read as an unfinished layout instead of a
+     * deliberately centred table.
+     */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
     gap: var(--space-4, 16px);
     padding: var(--space-6, 24px);
     background: var(--bg-primary, #0E0E14);
     border-radius: var(--radius-lg, 16px);
     border: 1px solid rgba(201, 168, 76, 0.08);
-    animation: slideIn 0.5s var(--ease-out, ease-out);
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    /* Entrance is owned by anime.js in Opponents.jsx, which staggers the
+       individual player cards rather than fading the whole board at once. */
+    /* Cards establish a containing block for the active-turn glow overlay. */
+    position: relative;
 }
 
 .player {
@@ -122,10 +160,30 @@
     padding: var(--space-5, 20px);
     background: var(--bg-elevated, #16161F);
     border-radius: var(--radius-md, 10px);
-    border: 1px solid rgba(201, 168, 76, 0.06);
+    /* ~3.2:1 against the card background. The previous 0.06 alpha gold sat at
+       1.10:1 — effectively invisible, and it is the border that has to carry
+       the card's state when the animations are absent or reduced away. */
+    border: 1px solid rgba(201, 168, 76, 0.28);
     transition: all var(--duration-normal, 250ms) ease;
     cursor: pointer;
     min-width: 140px;
+    /* Containing block for the `.playerActive::after` glow overlay. */
+    position: relative;
+}
+
+/* The opponent card is a real <button> only while a targeted action is
+   pending, so it has to opt out of the UA's button styling. Everything else
+   about the card is shared with the resting <div> version. */
+button.player {
+    font: inherit;
+    color: inherit;
+    text-align: center;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+button.player:hover {
+    transform: translateY(-3px);
 }
 
 .player:hover {
@@ -134,24 +192,54 @@
     box-shadow: var(--shadow-glow, 0 0 20px rgba(201, 168, 76, 0.15));
 }
 
+/* The global focus ring is gold, which is also `.playerActive`'s border colour.
+   On the active card the two collide at effectively 1:1, so the ring gets its
+   own treatment here: a light stroke that cannot be confused with gold. */
+.player:focus-visible {
+    outline: 3px solid var(--text-primary, #F5F0E8);
+    outline-offset: 4px;
+}
+
 .playerActive {
     border-color: var(--gold, #C9A84C);
     box-shadow: var(--shadow-glow-strong, 0 0 30px rgba(201, 168, 76, 0.25));
-    animation: activeGlow 2s ease-in-out infinite;
+    /*
+     * The breathing glow is a pseudo-element whose *opacity* is animated, not a
+     * `box-shadow` tween. Animating box-shadow is paint-only — it repaints the
+     * card every frame and cannot be composited, which in practice left a stale
+     * tile on the board once sibling cards were running composited entrance
+     * animations. A pre-painted shadow faded via `opacity` stays on the
+     * compositor and costs nothing per frame.
+     *
+     * It is deliberately CSS rather than anime.js: this is a continuous ambient
+     * loop, and binding it to the `.playerActive` class means it stops the
+     * instant the turn moves, with no inline style to revert and therefore no
+     * risk of a second glow lingering on the previous player.
+     */
+}
+
+.playerActive::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 34px 2px rgba(201, 168, 76, 0.42);
+    opacity: 0.45;
+    pointer-events: none;
+    animation: activeGlow 1.8s ease-in-out infinite;
 }
 
 @keyframes activeGlow {
-    0%, 100% {
-        box-shadow: 0 0 20px rgba(201, 168, 76, 0.2);
-    }
-    50% {
-        box-shadow: 0 0 30px rgba(201, 168, 76, 0.35);
-    }
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
 }
 
 .playerTargetable {
     cursor: pointer;
-    border-color: rgba(166, 61, 64, 0.3);
+    /* ~5.6:1. This is the persistent, non-animated signal that a card can be
+       targeted — the counterpart to the one-shot scale pulse — so it has to
+       stand on its own when reduced motion removes that pulse. */
+    border-color: rgba(166, 61, 64, 0.95);
 }
 
 .playerTargetable:hover {
@@ -277,19 +365,9 @@
     max-width: 500px;
     max-height: 80vh;
     overflow-y: auto;
-    animation: modalSlideIn 0.3s var(--ease-out, ease-out) forwards;
+    /* Entrance is owned by anime.js in Modal.jsx, which replays it on every
+       open. A one-shot CSS keyframe here would only fire on mount. */
     box-shadow: var(--shadow-xl, 0 16px 48px rgba(0, 0, 0, 0.6));
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(0.98);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
 }
 
 .movePreviewBadge {
@@ -333,26 +411,24 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    justify-content: flex-start;
     gap: 0;
     background: var(--bg-primary, #0E0E14);
     border-top: 1px solid rgba(201, 168, 76, 0.12);
-    position: fixed;
-    bottom: 0;
-    width: 100%;
     box-sizing: border-box;
     z-index: 50;
-    overflow: hidden;
-    max-height: fit-content;
+    /* Was `position: fixed; bottom: 0`, which is what forced the main area to
+       reserve a hardcoded 280px. In the grid it is simply the last row. */
 }
 
 .userInfo {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4, 16px);
+    /* Identity and purse sit together. `space-between` across the full bar
+       flung the coin count to the far edge, ~700px from the name it belongs
+       to, with nothing in between. */
+    justify-content: flex-start;
+    gap: var(--space-6, 24px);
     flex-shrink: 0;
-    width: 100%;
     padding: var(--space-4, 16px) var(--space-10, 40px);
     border-bottom: 1px solid rgba(201, 168, 76, 0.08);
 }
@@ -444,13 +520,35 @@
     color: var(--gold, #C9A84C);
 }
 
+/*
+ * Your own influences are the most consequential thing on the screen — they
+ * decide what you may do and what a challenge against you costs — and they were
+ * rendering as two small chips competing with the action buttons for attention.
+ * The cards are now larger than an opponent's face-down cards and carry their
+ * own eyebrow label, so the eye lands on your hand before anything else.
+ */
+.influencesBlock {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.influencesLabel {
+    margin: 0 0 var(--space-3, 12px);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted, #6B6358);
+    text-align: center;
+}
+
 .userCardsContainer {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-5, 20px);
     flex-wrap: nowrap;
-    padding: 0 var(--space-4, 16px);
     flex-shrink: 0;
     width: auto;
     border-right: 1px solid rgba(160, 152, 136, 0.1);
@@ -463,31 +561,24 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-1, 4px);
-    width: 96px;
-    height: 80px;
+    width: 108px;
+    height: 92px;
     border-radius: var(--radius-md, 10px);
     background: linear-gradient(135deg, var(--bg-elevated, #16161F), var(--bg-surface, #1C1C28));
-    border: 2px solid rgba(201, 168, 76, 0.2);
+    border: 2px solid rgba(201, 168, 76, 0.35);
     box-shadow: var(--shadow-md, 0 4px 16px rgba(0, 0, 0, 0.4));
     padding: var(--space-1, 4px);
-    cursor: pointer;
     transition: all var(--duration-normal, 250ms) var(--ease-bounce, ease);
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
 }
 
-.userCard:hover {
-    transform: translateY(-4px);
-    border-color: var(--gold, #C9A84C);
-    box-shadow: var(--shadow-glow-strong, 0 0 30px rgba(201, 168, 76, 0.25));
-}
-
-.userCard:focus {
-    outline: 2px solid var(--gold, #C9A84C);
-    outline-offset: 3px;
-}
-
+/*
+ * No hover lift or focus ring here: these are display-only, not controls.
+ * They used to carry `cursor: pointer` and a hover transform despite having
+ * no click handler, which advertised an interaction that did not exist.
+ */
 .userCardIcon {
     font-size: 1.4rem;
 }
@@ -553,37 +644,45 @@
 .gameStatus {
     display: flex;
     align-items: center;
+    /* Centre the badge + message as one group. The banner spans the full table
+       width, so left-aligning a short message left it stranded in a wide empty
+       bar that read as an unfinished element. */
+    justify-content: center;
     gap: var(--space-3, 12px);
     padding: var(--space-3, 12px) var(--space-5, 20px);
     background: var(--bg-elevated, #16161F);
     border: 1px solid rgba(201, 168, 76, 0.1);
     border-radius: var(--radius-md, 10px);
-    animation: statusSlideIn 0.3s var(--ease-out, ease-out);
+    /* Entrance is owned by anime.js in GameStatus.jsx, which replays it on
+       every state change rather than once on mount. */
 }
 
-@keyframes statusSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.statusMessage {
+    font-size: 13px;
+    color: var(--text-secondary, #A09888);
 }
 
+/*
+ * Ambient attention loop, deliberately NOT an opacity animation.
+ *
+ * Fading the container also fades its text: at an opacity trough of 0.7 the
+ * status message composited toward the page background falls to ~3.6:1, below
+ * the 4.5:1 minimum — and the loop is active for exactly the states
+ * (action declared, block declared, challenge) where reading fastest matters
+ * most. Pulsing a box-shadow instead leaves every glyph pixel-identical while
+ * still drawing the eye, which is the same approach the forced-coup glow uses.
+ */
 .statusPulse {
     animation: statusPulse 1.5s ease-in-out infinite;
 }
 
 @keyframes statusPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(201, 168, 76, 0);
+    }
+    50% {
+        box-shadow: 0 0 14px 2px rgba(201, 168, 76, 0.22);
+    }
 }
 
 .statusBadge {
@@ -620,12 +719,6 @@
     border: 1px solid rgba(90, 143, 92, 0.2);
 }
 
-.statusMessage {
-    font-size: 13px;
-    color: var(--text-secondary, #A09888);
-    flex: 1;
-}
-
 .challengeResult {
     font-size: 12px;
     font-weight: 600;
@@ -642,7 +735,7 @@
     background: var(--bg-elevated, #16161F);
     border: 1px solid rgba(166, 61, 64, 0.2);
     border-radius: var(--radius-md, 10px);
-    animation: fadeIn 0.3s var(--ease-out, ease-out);
+    /* Entrance is owned by anime.js in ChallengePanel.jsx. */
 }
 
 .challengeLabel {
@@ -665,7 +758,7 @@
     align-items: center;
     justify-content: center;
     z-index: 200;
-    animation: fadeIn 0.2s ease-out;
+    /* Entrance is owned by anime.js in ExchangeModal.jsx / InfluencePicker.jsx */
 }
 
 .exchangeModal {
@@ -679,18 +772,6 @@
     box-shadow: var(--shadow-xl, 0 16px 48px rgba(0, 0, 0, 0.6));
     width: 90%;
     max-width: 520px;
-    animation: modalSlideIn 0.3s var(--ease-out, ease-out) forwards;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(0.98);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
 }
 
 .exchangeHeader {
@@ -789,7 +870,7 @@
     align-items: center;
     justify-content: center;
     z-index: 300;
-    animation: fadeIn 0.5s ease-out;
+    /* Entrance is owned by anime.js in GameOver.jsx. */
 }
 
 .gameOverModal {
@@ -804,7 +885,7 @@
     box-shadow: var(--shadow-xl, 0 16px 48px rgba(0, 0, 0, 0.6));
     width: 90%;
     max-width: 400px;
-    animation: modalSlideIn 0.5s var(--ease-out, ease-out) forwards;
+    /* Entrance is owned by anime.js in GameOver.jsx. */
 }
 
 .gameOverTitle {

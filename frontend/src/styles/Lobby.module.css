@@ -22,18 +22,10 @@
     border-radius: var(--radius-lg, 16px);
     border: 1px solid rgba(201, 168, 76, 0.08);
     height: fit-content;
-    animation: slideInLeft 0.5s var(--ease-out, ease-out);
-}
-
-@keyframes slideInLeft {
-    from {
-        opacity: 0;
-        transform: translateX(-16px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+    /* Entrance is owned by anime.js in Lobby.jsx, which staggers the seats and
+       replays for players who join after the first paint. The old nth-child
+       keyframe delays only had six steps and could not animate a new arrival
+       in isolation. */
 }
 
 .panelTitle {
@@ -45,14 +37,30 @@
     border-bottom: 1px solid rgba(201, 168, 76, 0.1);
 }
 
-/* Player List */
+/* Player List
+   ------------------------------------------------------------
+   The old `max-height: 320px` clipped the list with no scroll affordance: with
+   five players Dave was cut mid-row and Eve was invisible entirely, so a
+   player could not see who was in the game. The cap is now viewport-relative
+   and generous, and the `local`/`scroll` background pair below paints a fade
+   only while there is actually more content — the classic pure-CSS scroll
+   shadow, with no JS scroll listener. */
 .playerList {
     display: flex;
     flex-direction: column;
     gap: var(--space-3, 12px);
-    max-height: 320px;
+    max-height: min(56vh, 560px);
     overflow-y: auto;
     padding-right: var(--space-2, 8px);
+
+    background:
+        /* Top fade — only while scrolled away from the top. */
+        linear-gradient(var(--bg-primary, #0E0E14) 30%, rgba(14, 14, 20, 0)) top / 100% 24px no-repeat local,
+        /* Bottom fade — only while there is more below. */
+        linear-gradient(rgba(14, 14, 20, 0), var(--bg-primary, #0E0E14) 70%) bottom / 100% 28px no-repeat local,
+        /* Shadows — scroll with the content, so they only show at the edges. */
+        radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0)) top / 100% 12px no-repeat scroll,
+        radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0)) bottom / 100% 12px no-repeat scroll;
 }
 
 .player {
@@ -64,25 +72,7 @@
     background: var(--bg-elevated, #16161F);
     border: 1px solid rgba(201, 168, 76, 0.06);
     transition: all var(--duration-normal, 250ms) ease;
-    animation: fadeInUp 0.3s var(--ease-out, ease-out) backwards;
-}
-
-.player:nth-child(1) { animation-delay: 0ms; }
-.player:nth-child(2) { animation-delay: 50ms; }
-.player:nth-child(3) { animation-delay: 100ms; }
-.player:nth-child(4) { animation-delay: 150ms; }
-.player:nth-child(5) { animation-delay: 200ms; }
-.player:nth-child(6) { animation-delay: 250ms; }
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    /* Entrance is owned by anime.js in Lobby.jsx */
 }
 
 .player:hover {
@@ -232,18 +222,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4, 16px);
-    animation: slideInRight 0.5s var(--ease-out, ease-out);
-}
-
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(16px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+    /* Entrance is owned by anime.js in Lobby.jsx */
 }
 
 .actionsContainer {

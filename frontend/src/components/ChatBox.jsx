@@ -4,11 +4,18 @@ import { useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getChatMessages, addChatMessage } from '../services/chat'
 import ChatBoxSkeleton from './ChatBoxSkeleton'
+import { buildWsUrl } from '../utils/ws'
+import { animate, stagger } from 'animejs'
+import { useAnimeScope } from '../hooks/useAnimeScope'
+import { DURATION, EASE, selAll } from '../utils/motion'
 
 /** System messages from game events (no userId or special sender) */
 function isSystemMessage(msg) {
     return !msg.userId || msg.sender_username === 'System'
 }
+
+/** Most messages a single render is allowed to animate in. */
+const MAX_ANIMATED_MESSAGES = 6
 
 function ChatBox({ header, withSubmission = true }) {
     const queryClient = useQueryClient()
@@ -16,6 +23,7 @@ function ChatBox({ header, withSubmission = true }) {
     const userId = sessionStorage.getItem('userId')
     const chatContainerRef = useRef()
     const chatWs = useRef(null)
+    const previousCount = useRef(0)
     const { data: messageDatas, isLoading } = useQuery({
         queryKey: ['chatMessages'],
         queryFn: getChatMessages,
@@ -31,16 +39,59 @@ function ChatBox({ header, withSubmission = true }) {
         },
     })
 
+    const [rootRef, , play] = useAnimeScope((root) => {
+        animate(selAll(root, styles.chatBoxContainer), {
+            opacity: { from: 0 },
+            translateX: { from: 16 },
+            duration: DURATION.slow,
+            ease: EASE.entrance,
+        })
+    })
+
     useEffect(() => {
         if (!chatContainerRef.current) return
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }, [messageDatas])
 
+    /**
+     * Animate in only what just arrived.
+     *
+     * Re-animating the whole log on every update would make each new message
+     * restart the entire history's entrance — a 200-message log would
+     * re-cascade 200 times. Tracking the previous count lets us target just
+     * the appended nodes, and capping the batch keeps an initial load of
+     * several hundred messages from cascading for a minute.
+     */
     useEffect(() => {
-        const wsHost = import.meta.env.WS_HOST || 'localhost';
-        const wsPort = import.meta.env.WS_PORT || '8000';
+        const container = chatContainerRef.current
+        if (!container || !Array.isArray(messageDatas)) return
+
+        const count = messageDatas.length
+        const added = count - previousCount.current
+        previousCount.current = count
+        if (added <= 0) return
+
+        const incoming = Array.from(container.children)
+            .slice(-Math.min(added, MAX_ANIMATED_MESSAGES))
+            .filter((el) => el instanceof HTMLElement)
+
+        if (incoming.length === 0) return
+
+        play(() =>
+            animate(incoming, {
+                opacity: [{ from: 0 }, { to: 1 }],
+                translateY: [{ from: 10 }, { to: 0 }],
+                scale: [{ from: 0.98 }, { to: 1 }],
+                duration: DURATION.normal,
+                ease: EASE.entrance,
+                delay: stagger(40),
+            })
+        )
+    }, [messageDatas, play])
+
+    useEffect(() => {
         if (userId && withSubmission) {
-            chatWs.current = new WebSocket(`ws://${wsHost}:${wsPort}/ws/chat?user_id=${userId}`)
+            chatWs.current = new WebSocket(buildWsUrl('/ws/chat', userId))
 
             chatWs.current.onmessage = (event) => {
                 try {
@@ -72,9 +123,23 @@ function ChatBox({ header, withSubmission = true }) {
     }, [userId, queryClient])
 
     return (
-        <div className={styles.chatBoxContainer}>
+        <div className={styles.chatBoxContainer} ref={rootRef}>
             <h2>{header}</h2>
-            <div className={styles.chats} ref={chatContainerRef}>
+            <div
+                className={styles.chats}
+                ref={chatContainerRef}
+                /*
+                 * Messages arrive over a WebSocket with no page interaction, so
+                 * the arrival animation is the only signal a sighted player
+                 * gets that something was said. `role="log"` gives the screen
+                 * reader equivalent; `aria-relevant="additions"` keeps it from
+                 * re-announcing the entire history on each update.
+                 */
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+                aria-label={header}
+            >
                 {isLoading && <ChatBoxSkeleton />}
                 {!isLoading && messageDatas.length === 0 && (
                     <div className={styles.emptyChat}>No messages yet.</div>
