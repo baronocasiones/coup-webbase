@@ -104,4 +104,65 @@ describe('Opponents component @unit', () => {
 
     expect(screen.getByText('?')).toBeInTheDocument()
   })
+
+  describe('keyboard access while choosing a target', () => {
+    it('renders each opponent as a real button, not a div with onClick', () => {
+      render(
+        <Opponents
+          {...defaultProps}
+          isChoosingTarget={true}
+          onPlayerClick={vi.fn()}
+          setIsChoosingTarget={vi.fn()}
+        />
+      )
+
+      // Coup/Assassinate/Steal all route through this, so it has to be
+      // reachable without a pointer.
+      const target = screen.getByRole('button', { name: /Target Bob/ })
+      expect(target.tagName).toBe('BUTTON')
+    })
+
+    it('gives each target an accessible name describing the player', () => {
+      render(
+        <Opponents
+          {...defaultProps}
+          isChoosingTarget={true}
+          onPlayerClick={vi.fn()}
+          setIsChoosingTarget={vi.fn()}
+        />
+      )
+
+      expect(
+        screen.getByRole('button', { name: 'Target Charlie, 7 coins, 2 cards' })
+      ).toBeInTheDocument()
+    })
+
+    it('activates a target from the keyboard', () => {
+      const onPlayerClick = vi.fn()
+      const setIsChoosingTarget = vi.fn()
+      render(
+        <Opponents
+          {...defaultProps}
+          isChoosingTarget={true}
+          onPlayerClick={onPlayerClick}
+          setIsChoosingTarget={setIsChoosingTarget}
+        />
+      )
+
+      const target = screen.getByRole('button', { name: /Target Bob/ })
+      target.focus()
+      expect(target).toHaveFocus()
+
+      // A native button turns Enter into a click event; a div would not.
+      fireEvent.click(target)
+      expect(onPlayerClick).toHaveBeenCalledWith('2')
+      expect(setIsChoosingTarget).toHaveBeenCalledWith(false)
+    })
+
+    it('does not render buttons when no target is being chosen', () => {
+      const { container } = render(<Opponents {...defaultProps} />)
+
+      expect(container.querySelectorAll('button.player')).toHaveLength(0)
+    })
+  })
 })

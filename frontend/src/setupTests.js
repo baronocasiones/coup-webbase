@@ -55,3 +55,20 @@ Object.defineProperty(window, 'WebSocket', { value: MockWebSocket })
 // Mock window.location
 delete window.location
 window.location = { href: '', assign: vi.fn(), replace: vi.fn() }
+
+// Mock matchMedia — jsdom ships without it, and the motion layer
+// (utils/motion.js -> prefersReducedMotion) reads it on every animation.
+// Defaults to "motion allowed" so tests exercise the animated code paths.
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})

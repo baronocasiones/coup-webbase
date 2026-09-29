@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from uuid import UUID
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from controllers.LobbyController import lobby_controller
 from controllers.GameController import game_controller
 from utils.state import game
@@ -18,6 +19,7 @@ from models.ChatModel import ChatModel
 from routes.players import router as players_router
 from routes.chats import router as chats_router
 from routes.game import router as game_router
+from routes.auth import router as auth_router
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -33,17 +35,26 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# CORS — allow Discord proxy origin + localhost for dev
+DISCORD_PROXY_ORIGIN = os.environ.get("DISCORD_PROXY_ORIGIN", "")
+origins = ["http://localhost:5173", "http://localhost:3000"]
+if DISCORD_PROXY_ORIGIN:
+    origins.append(DISCORD_PROXY_ORIGIN)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# routes
+
+# Routes
 app.include_router(players_router)
 app.include_router(chats_router)
 app.include_router(game_router)
+app.include_router(auth_router)
 
 
 @app.get('/start-game')
@@ -162,3 +173,9 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: UUID):
 
     except Exception as e:
         logger.error("Chat WS error: %s", e, exc_info=True)
+
+
+# Serve built frontend in production — MUST be last (catch-all)
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")

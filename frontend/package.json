@@ -15,7 +15,9 @@
     "test:integration": "vitest run --grep '@integration'"
   },
   "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
     "@tanstack/react-query": "^5.90.15",
+    "animejs": "^4.2.2",
     "axios": "^1.13.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

@@ -10,7 +10,15 @@
     background: var(--bg-primary, #0E0E14);
     border: 1px solid rgba(201, 168, 76, 0.08);
     border-radius: var(--radius-lg, 16px);
-    animation: slideInRight 0.5s var(--ease-out, ease-out);
+    /*
+     * A log panel should occupy the column it is given rather than shrink-wrap
+     * to its (usually empty) contents, which left a tall bare rectangle next to
+     * a cramped board. `.chats` then takes the slack and scrolls internally.
+     */
+    height: 100%;
+    box-sizing: border-box;
+    /* Entrance is owned by anime.js in ChatBox.jsx, which also animates in
+       individual messages as they arrive. */
 }
 
 .chatBoxContainer h2 {
@@ -23,24 +31,18 @@
     border-bottom: 1px solid rgba(201, 168, 76, 0.08);
 }
 
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(16px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
 .chats {
     display: flex;
     flex-direction: column;
     gap: var(--space-3, 12px);
-    height: 270px;
+    /*
+     * Was a hardcoded `height: 270px`, which fought the surrounding layout and
+     * left dead space in the PlayRoom log column. Now it absorbs the slack
+     * from its flex parent, with a floor so it never collapses to nothing.
+     */
+    flex: 1;
+    min-height: 180px;
     width: 100%;
-    max-width: 380px;
     overflow-wrap: break-word;
     overflow-y: auto;
     padding: var(--space-3, 12px);

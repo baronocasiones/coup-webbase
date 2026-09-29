@@ -9,6 +9,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     css: false,
+    // Unit tests live in src/__tests__. The Playwright specs under
+    // tests/e2e match the default include glob, so without this vitest tries
+    // to run them and every one fails with "Playwright Test did not expect
+    // test() to be called here" — 12 phantom failures that have nothing to do
+    // with the unit suite. Run those with `npx playwright test`.
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

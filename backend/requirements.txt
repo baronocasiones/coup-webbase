@@ -4,10 +4,33 @@ anyio==4.12.0
 click==8.3.1
 fastapi==0.125.0
 h11==0.16.0
+httpx==0.28.1
 idna==3.11
 pydantic==2.12.5
 pydantic_core==2.41.5
 starlette==0.50.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
+
+# uvicorn ships no WebSocket implementation of its own. The `websockets`
+# package is an optional extra ("uvicorn[standard]"), so a bare pin installs
+# cleanly and then refuses every upgrade request at runtime:
+#
+#   WARNING: No supported WebSocket library detected. Please use
+#   "pip install 'uvicorn[standard]'", or install 'websockets' or 'wsproto'
+#   manually.
+#   WARNING: Unsupported upgrade request.
+#
+# This bit us in CI, where `pip install -r requirements.txt` produced a server
+# that answered /ws/game with 404. Every WebSocket-dependent E2E test then
+# failed for a reason that had nothing to do with the application, and the
+# Dockerfile shipped the same defect to production — a real-time multiplayer
+# game whose real-time multiplayer did not work.
+#
+# `websocket==0.2.1` was removed from this file in 6d4500d as a dead
+# dependency. It genuinely was dead — it is a client library and uvicorn never
+# used it — but removing it left the server with no way to accept a connection
+# at all. This is the dependency that actually does that job.
+websockets==17.1
+
 uvicorn==0.38.0

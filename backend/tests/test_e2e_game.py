@@ -146,8 +146,12 @@ class TestFullGameFlow:
 
         # Bob selects a card to lose
         card_to_lose = bob.cards[0]
+        cards_before = list(bob.cards)
         game.resolve_influence_selection(bob.id, card_to_lose)
-        assert card_to_lose not in bob.cards
+        # Count-based rather than asserting absence — the deck has five copies
+        # of each influence, so a paired hand keeps the discarded card.
+        assert bob.cards.count(card_to_lose) == cards_before.count(card_to_lose) - 1
+        assert len(bob.cards) == len(cards_before) - 1
         assert game.state == GameState.WAITING_FOR_ACTION
 
     def test_tax_then_challenge_flow(self, client):
@@ -246,8 +250,13 @@ class TestFullGameFlow:
         assert alice.coins == 0
 
         card = bob.cards[0]
+        cards_before = list(bob.cards)
         game.resolve_influence_selection(bob.id, card)
-        assert card not in bob.cards
+        # Compare counts rather than asserting absence: the deck has five
+        # copies of each influence, so a hand holding a pair would still contain
+        # the discarded card after losing one of them.
+        assert bob.cards.count(card) == cards_before.count(card) - 1
+        assert len(bob.cards) == len(cards_before) - 1
 
     def test_foreign_aid_blocked(self, client):
         """Foreign aid gets blocked by another player."""

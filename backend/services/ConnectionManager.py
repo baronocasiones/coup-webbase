@@ -78,12 +78,19 @@ class ConnectionManager:
             sender: The unique identifier of the player sending the message.
             message: The JSON-serializable message to broadcast.
         """
-        dead = []
-        for id, connection in self.active_connections.items():
-            if id != sender:
-                try:
-                    await connection.send_json(message)
-                except Exception:
-                    dead.append(id)
-        for pid in dead:
-            self.disconnect(pid)
+        # Snapshot the connections before awaiting anything.
+        #
+        # `await` yields control back to the event loop, and a peer can connect
+        # or disconnect while this loop is suspended — which mutates
+        # `active_connections` and raises "dictionary changed size during
+        # iteration" from the `for` statement itself, outside the `try` below
+        # and so unhandled. That aborted the whole broadcast, silently dropping
+        # the message for every other player. Two players acting at once is the
+        # normal case in this game, not an edge case.
+        for id, connection in list(self.active_connections.items()):
+            if id == sender:
+                continue
+            try:
+                await connection.send_json(message)
+            except Exception:
+                self.disconnect(id)

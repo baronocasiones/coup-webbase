@@ -460,9 +460,15 @@ class TestResolveInfluenceSelection:
 
         assert game.state == GameState.INFLUENCE_SELECTION_PENDING
         card_to_lose = target.cards[0]
+        cards_before = list(target.cards)
         game.resolve_influence_selection(target.id, card_to_lose)
 
-        assert card_to_lose not in target.cards
+        # Assert on the count of the discarded influence, not on its absence.
+        # The court deck holds five copies of each influence, so a player can
+        # legitimately hold duplicates — asserting the card is gone made this
+        # test fail whenever the hand contained a pair.
+        assert target.cards.count(card_to_lose) == cards_before.count(card_to_lose) - 1
+        assert len(target.cards) == len(cards_before) - 1
         assert game.state == GameState.WAITING_FOR_ACTION
         assert game.pending_influence_target is None
 
@@ -680,9 +686,13 @@ class TestHandleChallenge:
 
         # Remove a card from the loser
         card_to_remove = current_player.cards[0]
+        cards_before = list(current_player.cards)
         game.handle_challenge(card_to_remove)
 
-        assert card_to_remove not in current_player.cards
+        # Count-based rather than "is it gone": the court deck holds five copies
+        # of each influence, so a hand holding a pair still contains the
+        # discarded influence afterwards.
+        assert current_player.cards.count(card_to_remove) == cards_before.count(card_to_remove) - 1
         assert len(current_player.cards) == 1
         assert game.state == GameState.WAITING_FOR_ACTION
 

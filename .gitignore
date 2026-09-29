@@ -1,1 +1,10 @@
 *.md
+AGENTS.md
+
+# Playwright output.
+# The entries in frontend/.gitignore only cover paths under frontend/, and
+# Playwright's outputDir resolves against the config's directory — but the
+# suite has also been invoked from the repo root, which drops test-results/
+# here. That root directory is what got committed to the PR.
+test-results/
+playwright-report/
