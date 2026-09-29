@@ -32,22 +32,21 @@ jobs:
       - name: Install Playwright browsers
         run: cd frontend && npx playwright install chromium --with-deps
 
-      - name: Start backend
-        run: cd backend && uvicorn api:app --host 0.0.0.0 --port 8000 &
-        env:
-          ENV: testing
-
-      - name: Wait for backend
-        run: npx wait-on http://localhost:8000/players --timeout 30000
-
-      - name: Start frontend
-        run: cd frontend && npm run dev &
-        env:
-          API_URL: http://localhost:8000
-
-      - name: Wait for frontend
-        run: npx wait-on http://localhost:5173 --timeout 30000
-
+      # No manual "start backend" / "wait-on" / "start frontend" steps.
+      #
+      # These used to run uvicorn on :8000 and Vite on :5173 in the background,
+      # then `npx playwright test` ran with CI=true — which sets
+      # reuseExistingServer:false. Playwright therefore tried to launch a second
+      # uvicorn and a second Vite on the same two already-bound ports and
+      # aborted during webServer startup, before any test executed:
+      #
+      #   Error: http://localhost:8000/players is already used ...
+      #
+      # The job failed 100% of the time. The `webServer` block in
+      # playwright.config.ts already starts both servers with proper readiness
+      # probes and owns their teardown, and it carries ENV=testing for the
+      # backend so /test/reset is enabled. Letting a single mechanism own the
+      # lifecycle removes the collision by construction.
       - name: Run E2E tests
         run: cd frontend && npx playwright test
 

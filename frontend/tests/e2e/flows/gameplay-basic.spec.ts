@@ -27,25 +27,34 @@ test.describe('Gameplay: basic actions', () => {
     const gameState = await getGameState(page);
     const isAliceTurn = gameState.currentTurn?.id === p1.userId;
 
-    if (isAliceTurn) {
-      const playRoom = new PlayRoomPage(page);
-      await playRoom.waitForLoad();
+    // The first player is dealt the opening turn, so Alice should own it. This
+    // used to be an `if (isAliceTurn) { ...assertions... }` with no else, which
+    // meant that whenever the turn landed on Bob the test body was skipped
+    // entirely and the test reported success having verified nothing at all —
+    // a green check that carried no information. An explicit skip states the
+    // precondition out loud instead of quietly reporting a pass.
+    expect(
+      isAliceTurn,
+      `Expected Alice to open the game, but currentTurn was ${gameState.currentTurn?.name}`
+    ).toBe(true);
 
-      // Ensure WS is connected before sending any actions
-      await waitForWsConnected(page);
+    const playRoom = new PlayRoomPage(page);
+    await playRoom.waitForLoad();
 
-      await playRoom.performAction('Income');
+    // Ensure WS is connected before sending any actions
+    await waitForWsConnected(page);
 
-      // Poll REST API for the coin update (WS broadcast doesn't reach the sender)
-      let updatedCoins = initialCoins;
-      for (let i = 0; i < 20; i++) {
-        await page.waitForTimeout(500);
-        const updatedPlayer = await getUserPlayer(page, p1.userId);
-        updatedCoins = updatedPlayer.coins;
-        if (updatedCoins === initialCoins + 1) break;
-      }
-      expect(updatedCoins).toBe(initialCoins + 1);
+    await playRoom.performAction('Income');
+
+    // Poll REST API for the coin update (WS broadcast doesn't reach the sender)
+    let updatedCoins = initialCoins;
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(500);
+      const updatedPlayer = await getUserPlayer(page, p1.userId);
+      updatedCoins = updatedPlayer.coins;
+      if (updatedCoins === initialCoins + 1) break;
     }
+    expect(updatedCoins).toBe(initialCoins + 1);
 
     await context2.close();
   });
