@@ -23,8 +23,33 @@ def client():
     ``raise_server_exceptions=False`` makes the client return 500 responses
     for unhandled server errors instead of propagating them as Python
     exceptions — closer to real HTTP behaviour and easier to assert on.
+
+    The client is entered as a context manager so that a single blocking
+    portal backs every request made through it.  This is load-bearing.
+
+    Starlette's ``TestClient._portal_factory`` starts a *new* blocking portal
+    for every request when ``client.portal`` is None — which is exactly the
+    state a bare, un-entered ``TestClient`` is in.  Each ``websocket_connect``
+    therefore ran on its own event loop, so the two sockets in
+    ``test_broadcast_action`` lived in different loops.  ``ws1.send_json()``
+    woke the server task on loop A, whose ``broadcast()`` then wrote into
+    ``ws2``'s memory stream on loop B.  A memory-object stream only wakes
+    receivers on the loop that created it, so the message sat in the buffer
+    and ``ws2.receive_json()`` blocked forever.  Entering the context manager
+    sets ``client.portal`` once and shares it, which fixes the delivery.
+
+    Entering also runs the app's ``lifespan``, which only re-wires
+    ``lobby_controller`` to the global ``game`` — something ``reset_game_state``
+    already does on every test.
     """
-    return TestClient(app, raise_server_exceptions=False)
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        yield test_client
+
+    # Teardown must also drop connections, and it runs *after* the context
+    # manager above has closed its portal. Leaving a socket registered would
+    # let the next test's `broadcast()` push into a dead peer.
+    game_manager.active_connections.clear()
+    chat_manager.active_connections.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -67,9 +92,8 @@ def reset_game_state():
     #
     # These outlive any individual test, and a `TestClient` WebSocket that has
     # left its `with` block is not a usable peer. A later `broadcast()` would
-    # try to `send_json` on those dead sockets, which is what made the
-    # WebSocket integration tests hang intermittently and bled state into
-    # unrelated files. Cleared on both sides of the test so a test that leaves a
+    # try to `send_json` on those dead sockets, which bled state into unrelated
+    # files. Cleared on both sides of the test so a test that leaves a
     # connection open cannot poison the next one.
     game_manager.active_connections.clear()
     chat_manager.active_connections.clear()
