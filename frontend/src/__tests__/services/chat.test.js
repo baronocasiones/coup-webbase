@@ -37,16 +37,15 @@ describe('chat service @unit', () => {
   })
 
   describe('addChatMessage', () => {
-    it('posts message to POST /chat and broadcasts via WS', async () => {
+    it('posts the message and lets the server do the broadcasting', async () => {
       const mockResponse = { id: 'msg-1', status: 'ok' }
       axios.post.mockResolvedValue({ data: mockResponse })
-      const mockWs = { send: vi.fn(), readyState: WebSocket.OPEN }
 
+      // No socket is passed, and none is needed.
       const result = await addChatMessage({
         userId: '1',
         username: 'Alice',
         message: 'Hello!',
-        chatWs: mockWs,
       })
 
       expect(axios.post).toHaveBeenCalledWith('/chat', {
@@ -54,12 +53,24 @@ describe('chat service @unit', () => {
         sender_username: 'Alice',
         message: 'Hello!',
       })
-      expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify({
-        userId: '1',
-        sender_username: 'Alice',
-        message: 'Hello!',
-      }))
       expect(result).toEqual(mockResponse)
+    })
+
+    it('does not require a live socket to be heard', async () => {
+      // The old contract made the sender's browser POST *and* send a frame, in
+      // that order. A message written while that socket was down — reconnecting,
+      // or never opened — was persisted and announced to nobody, and nothing
+      // said so. The write is now the event, and the server pushes from it.
+      axios.post.mockResolvedValue({ data: {} })
+      const mockWs = { send: vi.fn(), readyState: WebSocket.CLOSED }
+
+      await expect(
+        addChatMessage({ userId: '1', username: 'Alice', message: 'Hello!' })
+      ).resolves.toBeDefined()
+
+      // Nothing is sent over a socket at all, closed or otherwise.
+      expect(mockWs.send).not.toHaveBeenCalled()
+    })
     })
 
     it('propagates POST errors', async () => {
@@ -74,4 +85,3 @@ describe('chat service @unit', () => {
       })).rejects.toThrow('Forbidden')
     })
   })
-})

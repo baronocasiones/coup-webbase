@@ -192,11 +192,12 @@ function ChatBox({ header, withSubmission = true }) {
                     const message = inputRef.current.value
                     const uid = sessionStorage.getItem('userId')
                     const username = sessionStorage.getItem('username')
-                    if (!chatWs.current) {
-                        console.error('Chat WebSocket is not connected.')
-                        return
-                    }
-                    sendChatMutation({ userId: uid, username, message, chatWs: chatWs.current })
+                    // No socket required to send. The server pushes the message
+                    // to everyone else while handling the POST, so this used to
+                    // gate on a connection it did not need — which meant a
+                    // message could not be written at all while the socket was
+                    // reconnecting.
+                    sendChatMutation({ userId: uid, username, message })
                     inputRef.current.value = ''
                 }}>
                     <input ref={inputRef} className={styles.chatInput} type="text" placeholder="Type a message..." />

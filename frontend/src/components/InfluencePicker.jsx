@@ -80,8 +80,18 @@ Choose a card to lose</h3>
                     {cards.map((card, index) => (
                         <button
                             key={index}
+                            type="button"
                             className={styles.exchangeCard}
                             onClick={() => onSelect(card)}
+                            /*
+                             * Matching ExchangeModal, which already labels its
+                             * cards this way. Beyond consistency it gives these
+                             * buttons a stable selector: the accessible name
+                             * alone is ambiguous here, because a hand holding a
+                             * pair renders two identical names and a
+                             * name-keyed click can only ever reach one of them.
+                             */
+                            aria-label={`Select ${card}`}
                         >
                             <span className={styles.exchangeCardIcon}>{CARD_ICONS[card] || '?'}</span>
                             <span className={styles.exchangeCardName}>{card}</span>

@@ -135,6 +135,11 @@ class TestChatWebSocket:
 
                 assert UUID(p1["id"]) in chat_manager.active_connections
 
+                # Posted and nothing else. The client does not send a frame of its
+                # own, and does not need a live socket to be heard: the server
+                # pushes as part of handling the write. It used to depend on the
+                # sender's browser doing POST-then-send, so a message written
+                # while that socket was down was saved and announced to nobody.
                 response = client.post(
                     "/chat",
                     json={
@@ -144,7 +149,6 @@ class TestChatWebSocket:
                     },
                 )
                 assert response.status_code == 201
-                ws1.send_json({"userId": p1["id"], "message": "Hello!"})
 
                 # Bob is the recipient, and therefore the socket at risk from an
                 # unencodable payload. Checked before the read that would hang.
@@ -187,7 +191,6 @@ class TestChatWebSocket:
                             "message": f"msg-{i}",
                         },
                     )
-                    ws1.send_json({"userId": p1["id"], "message": f"msg-{i}"})
 
                     # The reader is the socket most at risk from an unencodable
                     # payload, and a read from an unregistered socket never
