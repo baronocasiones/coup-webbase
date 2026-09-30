@@ -42,6 +42,43 @@ def get_game_state():
         raise HTTPException(status_code=404, detail="Game not found")
 
 
+@router.post("/game/reset")
+async def reset_to_lobby():
+    """
+    End a finished game and put the table back in the lobby for a rematch.
+
+    Deliberately not gated behind `ENV=testing`, unlike `/test/reset`. That gate
+    is what left a finished game with no way out: `GAME_OVER` refuses new
+    players and holds a roster of one, so the only thing that could clear it was
+    an endpoint that 403s in production. A game that has been decided and cannot
+    be left is not a testing concern.
+
+    Broadcast as well as returning, so the players who did not press the button
+    come off the finished board too rather than sitting on a game-over screen
+    for a game that no longer exists.
+
+    Callable from any state, and that is deliberate. The GameOver button is the
+    intended caller, but a game wedged in INFLUENCE_SELECTION_PENDING used to
+    have no escape at all, and "abandon whatever is happening and put everyone
+    back in the lobby" is a reasonable thing for this to mean. It is idempotent,
+    so a retried request is harmless.
+    """
+    if game_controller.game is None:
+        raise HTTPException(status_code=404, detail="Game not started")
+
+    game_controller.game.return_to_lobby()
+    state = GameStateModel(**game_controller.get_game_states()).model_dump(mode="json")
+    # Framed rather than sent as a bare game state, so the client can tell this
+    # apart from an ordinary update by reading one field. Sniffing
+    # `state === "WAITING_FOR_PLAYERS"` would also match the frame a client gets
+    # when it connects before a game has started, and navigate on the wrong
+    # evidence.
+    await game_controller.game_manager.broadcast(
+        None, {"action": "game_reset", "gameState": state}
+    )
+    return state
+
+
 @router.get('/user-player', response_model=UserPlayerModel)
 def get_user_player(user_id: UUID):
     try:

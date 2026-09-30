@@ -12,6 +12,7 @@ from services.GameAction import GameAction
 from services.Influence import Influence
 from services.BlockMove import BlockMove
 from utils.exceptions import SynchronizationError
+from utils.globals import STARTING_COINS
 from controllers.LobbyController import lobby_controller
 from controllers.GameController import game_controller
 from services.ConnectionManager import ConnectionManager
@@ -835,3 +836,272 @@ class TestBlockEligibility:
 
         assert game.move_target_id is None
         assert client.get("/game-state").json()["moveTargetId"] is None
+
+
+# ---------------------------------------------------------------------------
+# Finishing a game, and starting the next one
+# ---------------------------------------------------------------------------
+
+class TestGameOverAndRematch:
+    """
+    A decided game had no way out.
+
+    `next_turn()` set GAME_OVER and returned *before* the state reset and before
+    clamping the turn index, so a game that ended with the eliminated player on
+    turn left a stale index and every `get_game_states()` raised IndexError — a
+    500 on the one call the client makes to render a finished game. It also
+    carried the last action into GAME_OVER: the declared move, the block, the
+    blocker, the challenger, the target, the challenge loser and any `is_lying`
+    flags all survived.
+
+    Then it was terminal. `add_player()` refuses anyone unless the state is
+    WAITING_FOR_PLAYERS, and GAME_OVER is not that, so the winner who went back
+    to the lobby found one player, could not admit anyone, and could not start a
+    game that needs two. The only thing that cleared it was POST /test/reset,
+    which 403s unless ENV=testing.
+    """
+
+    @staticmethod
+    def _ids(players: list[dict]) -> list[UUID]:
+        return [UUID(p["id"]) for p in players]
+
+    @staticmethod
+    def _player(player_id: UUID) -> Player:
+        player = game.get_player_by_id(player_id) if player_id in game.players else None
+        if player is None:
+            for candidate in game._ended_roster.values():
+                if candidate.id == player_id:
+                    return candidate
+        if player is None:
+            raise AssertionError(f"player {player_id} is nowhere in the game")
+        return player
+
+    def _finish_with_winner(self, players, winner_index=0):
+        """Knock everyone but one player out, and trip the win condition."""
+        for index, player_id in enumerate(self._ids(players)):
+            if index != winner_index:
+                self._player(player_id).update_cards([])
+        game.next_turn()
+        return self._ids(players)[winner_index]
+
+    def test_a_finished_game_reports_a_turn_instead_of_erroring(self, client):
+        # The 500. `get_game_states()` guards on there being *a* player, not on
+        # the turn index being in range, and the win check returned before the
+        # clamp — so this was a 500 whenever the eliminated player was on turn,
+        # which is the common case, since the loser is usually whoever just acted.
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        bob = self._ids(players)[1]
+        self._player(bob).update_cards([])
+        game.currentTurnIndex = 1  # pointing at the player about to be deleted
+
+        game.next_turn()
+
+        assert game.state == GameState.GAME_OVER
+        response = client.get("/game-state")
+        assert response.status_code == 200
+        assert response.json()["currentTurn"] is not None
+
+    def test_a_finished_game_carries_no_action_state(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        alice, bob, carol = self._ids(players)
+        # Leave the table mid-action, as a game decided by a challenge would be.
+        game.declare_move(alice, GameAction.STEAL, target_id=bob)
+        game.challenge_loser = game.get_player_by_id(bob)
+        game.challenger_id = carol
+        game.get_player_by_id(alice).is_lying = True
+        game.get_player_by_id(bob).update_cards([])
+        game.get_player_by_id(carol).update_cards([])
+
+        game.next_turn()
+
+        assert game.state == GameState.GAME_OVER
+        assert game.declared_move is None
+        assert game.declared_block is None
+        assert game.blocker_id is None
+        assert game.challenger_id is None
+        assert game.move_target_id is None
+        assert game.challenge_loser is None
+        assert game.pending_influence_target is None
+        assert game.exchange_cards is None
+        assert not any(p.is_lying for p in game._ended_roster.values())
+
+        # And none of it reaches the client.
+        state = client.get("/game-state").json()
+        assert state["declaredMove"] is None
+        assert state["declaredBlock"] is None
+        assert state["blockerId"] is None
+        assert state["moveTargetId"] is None
+        assert state["challengeLoser"] is None
+
+    def test_the_standings_survive_the_players_being_deleted(self, client):
+        # `next_turn()` deletes a player the moment their last card goes, so a
+        # finished game holds exactly one player and `playersState` could only
+        # ever be a single row. The standings are captured before the deletions.
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        alice, bob, carol = self._ids(players)
+        self._player(bob).update_cards([])
+        self._player(carol).update_cards([])
+
+        game.next_turn()
+
+        assert list(game.players) == [alice], "the loser is not the survivor"
+        standings = game.final_standings
+        assert [s.name for s in standings] == ["Alice", "Bob", "Carol"]
+        assert standings[0].isEliminated is False
+        assert [s.isEliminated for s in standings[1:]] == [True, True]
+        assert [s.numberOfCards for s in standings] == [2, 0, 0]
+
+        # And they are published, unlike the roster they came from.
+        assert len(client.get("/game-state").json()["finalStandings"]) == 3
+
+    def test_no_standings_before_a_game_is_decided(self, client):
+        _make_game_with_players(client, ["Alice", "Bob"])
+
+        assert game.final_standings is None
+        assert client.get("/game-state").json()["finalStandings"] is None
+
+    def test_the_whole_table_can_play_again(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        names = [p["name"] for p in players]
+        self._finish_with_winner(players, winner_index=0)
+        assert game.state == GameState.GAME_OVER
+
+        response = client.post("/game/reset")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["state"] == GameState.WAITING_FOR_PLAYERS.value
+        # Everyone is back, the eliminated players included, so the table that
+        # just finished is the table that plays again.
+        assert {p["name"] for p in body["playersState"]} == set(names)
+        assert body["finalStandings"] is None
+
+    def test_a_rematch_restores_every_players_state(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        alice = self._ids(players)[0]
+        game.get_player_by_id(alice).coins = 9
+        game.get_player_by_id(alice).isReady = True
+        self._finish_with_winner(players, winner_index=0)
+
+        client.post("/game/reset")
+
+        winner = self._player(alice)
+        assert winner.coins == STARTING_COINS, "a rematch must not start the winner rich"
+        assert winner.cards == []
+        assert winner.isReady is False, "nobody is still ready from the last game"
+        assert winner.is_lying is False
+        # A stale moves list here would hand the rematch's first player every
+        # action their previous hand granted.
+        assert set(winner.moves) == {
+            GameAction.INCOME, GameAction.FOREIGN_AID, GameAction.COUP
+        }
+
+    def test_a_rematch_deals_from_a_full_deck(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        self._finish_with_winner(players)
+        assert game.get_cards_in_deck() < 15, "the deck was drawn from"
+
+        client.post("/game/reset")
+
+        # Without a fresh deck the second game would deal a short hand or run the
+        # deck dry, since the first one consumed it.
+        assert game.get_cards_in_deck() == 15
+
+    def test_a_second_game_actually_starts(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        self._finish_with_winner(players)
+        client.post("/game/reset")
+
+        client.get("/start-game")
+
+        assert game.state == GameState.WAITING_FOR_ACTION
+        assert len(game.players) == 3
+        assert all(len(p.cards) == 2 for p in game.players.values())
+
+    def test_a_player_can_still_join_after_a_rematch(self, client):
+        # The lock-up itself. `add_player()` refuses anyone unless the state is
+        # WAITING_FOR_PLAYERS, so a GAME_OVER game could never be joined again.
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        self._finish_with_winner(players)
+        client.post("/game/reset")
+
+        response = client.post("/player?player_name=Dave")
+
+        assert response.status_code == 200
+        assert "Dave" in [p["name"] for p in client.get("/players").json()]
+
+    def test_a_finished_game_still_refuses_new_players(self, client):
+        # The reset is explicit. GAME_OVER on its own is not a lobby, and letting
+        # players in during the game-over screen would race whoever is reading
+        # the standings.
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        self._finish_with_winner(players)
+
+        response = client.post("/player?player_name=Dave")
+
+        assert response.status_code >= 400
+
+    def test_reset_clears_the_chats(self, client):
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        client.post(
+            "/chat",
+            json={
+                "userId": players[0]["id"],
+                "sender_username": "Alice",
+                "message": "greetings",
+            },
+        )
+        assert len(game.chats) == 1
+        self._finish_with_winner(players)
+
+        client.post("/game/reset")
+
+        # A new game gets a new log. Last round's accusations sitting above the
+        # new lobby would read as belonging to it.
+        assert game.chats == []
+
+    def test_players_keep_their_ids_across_a_rematch(self, client):
+        # The client holds userId in sessionStorage. Restoring by identity is
+        # what lets a rematch start without anybody re-registering.
+        players = _make_game_with_players(client, ["Alice", "Bob", "Carol"])
+        before = [p["id"] for p in players]
+        self._finish_with_winner(players)
+
+        client.post("/game/reset")
+
+        assert [str(p.id) for p in game.players.values()] == before
+
+    def test_the_reset_endpoint_is_available_without_the_testing_flag(self, client, monkeypatch):
+        # `/test/reset` 403s unless ENV=testing, which is precisely why a
+        # finished game had no way out in production. This one must not inherit
+        # that gate.
+        monkeypatch.delenv("ENV", raising=False)
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        self._finish_with_winner(players)
+
+        response = client.post("/game/reset")
+
+        assert response.status_code == 200
+        assert game.state == GameState.WAITING_FOR_PLAYERS
+
+    def test_an_empty_lobby_reports_no_current_turn_instead_of_erroring(self, client):
+        # `get_game_states()` omits `currentTurn` entirely when the roster is
+        # empty, and the field used to be required — so a ValidationError, and a
+        # 500, on the call that renders an empty lobby. A rematch passes through
+        # that state whenever someone leaves before the next deal.
+        #
+        # `/start-game` is what wires the controller, and it refuses a room of
+        # one, so two players are needed to get there. Without the wiring the
+        # route 404s, which is correct for "no game set" and would mask what is
+        # being tested here.
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        game.return_to_lobby()
+        for player in players:
+            client.delete(f"/player?user_id={player['id']}")
+        assert len(game.players) == 0
+
+        response = client.get("/game-state")
+
+        assert response.status_code == 200
+        assert response.json()["currentTurn"] is None
+        assert response.json()["playersState"] == []

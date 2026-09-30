@@ -1,8 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
 from api import app, game_manager, chat_manager
-from services.Card import Card
-from services.GameState import GameState
 from controllers.LobbyController import lobby_controller
 from controllers.GameController import game_controller
 from utils.state import game
@@ -56,29 +54,23 @@ def client():
 def reset_game_state():
     """Reset global game state before every test to prevent cross-test contamination.
 
-    The global ``game`` singleton persists across tests.  We must fully
-    re-initialise every mutable attribute — including the court deck — so
-    that ``start_game()`` can always deal fresh cards.
+    The global ``game`` singleton persists across tests, so it has to be fully
+    re-initialised between them — court deck included, or ``start_game()`` deals
+    from whatever the previous test left behind.
+
+    This delegates to ``CoupGame.reset()`` rather than re-listing the fields,
+    which is the point. The list used to be spelled out here *and* again in
+    ``/test/reset``, so adding a field to ``CoupGame`` silently leaked it between
+    tests unless a third place was also updated — and it did leak:
+    ``final_standings`` survived into the next test and made a game that had not
+    been decided look decided. One definition, called from both places, cannot
+    drift.
 
     Note: ``game_controller`` is intentionally **not** wired here.
     The ``/start-game`` endpoint is responsible for that.  Leaving it
     uninitialised preserves the 404 behaviour that existing tests depend on.
     """
-    # Replace the court deck with a brand-new shuffled deck
-    game.court_deck = Card()
-
-    game.players.clear()
-    game.chats.clear()
-    game.state = GameState.WAITING_FOR_PLAYERS
-    game.declared_move = None
-    game.declared_block = None
-    game.blocker_id = None
-    game.move_target_id = None
-    game.challenge_loser = None
-    game.pending_influence_target = None
-    game.exchange_cards = None
-    game.currentTurnIndex = 0
-    game.challenger_id = None
+    game.reset()
 
     # Re-wire lobby_controller to the global game instance
     lobby_controller.set_game(game)

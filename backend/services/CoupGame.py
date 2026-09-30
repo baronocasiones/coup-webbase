@@ -10,6 +10,7 @@ from .GameAction import GameAction
 from .BlockMove import BlockMove
 from .Card import Card
 from .Influence import Influence
+from models.PlayerModel import PlayerModel
 
 from .actions.assassinate import Assassinate
 from .actions.coup import Coup
@@ -44,6 +45,14 @@ class CoupGame:
         # Two-phase action state
         self.pending_influence_target: Optional[UUID] = None
         self.exchange_cards: Optional[list[Influence]] = None
+
+        # Game-over state. `final_standings` is None until a game ends, and
+        # `_ended_roster` holds the full roster captured at that moment — the
+        # eliminated players are deleted from `players` by `next_turn()`, so
+        # without the snapshot there would be no way to seat them again for a
+        # rematch or to show how the game finished.
+        self.final_standings: Optional[list[PlayerModel]] = None
+        self._ended_roster: dict[UUID, Player] = {}
 
         self.move_handler = {
             GameAction.INCOME: Income(),
@@ -371,22 +380,59 @@ class CoupGame:
         Advance to the next player's turn and reset the game and players state.
         Eliminates any players with 0 cards before advancing.
         """
+        # Snapshot the roster *before* the deletions. These are the only frames
+        # in which an eliminated player still exists, and the game-over screen
+        # needs them; after the `del` below they are gone.
+        roster_before = list(self.players.values())
+
         # Eliminate players with 0 cards
         eliminated = [pid for pid, p in self.players.items() if len(p.cards) == 0]
         for pid in eliminated:
             del self.players[pid]
 
-        # Check win condition
-        if len(self.players) <= 1:
-            self.state = GameState.GAME_OVER
-            return
-
-        # Clamp turn index if needed (in case players were removed)
+        # Clamp *after* the deletions, because the index is relative to a roster
+        # that has just shrunk, and *before* the win check.
+        #
+        # `get_current_player()` indexes `list(self.players.values())`. With two
+        # players and the second one eliminated, an index of 1 is in range while
+        # the roster is whole and out of range once it is not — so a clamp placed
+        # before the deletions silently does nothing, and a clamp placed after the
+        # win check is never reached at all. Either way the finished game left a
+        # stale index and every `get_game_states()` raised IndexError: a 500 on
+        # GET /game-state, the one call the client makes to render a won game.
         if self.currentTurnIndex >= len(self.players):
             self.currentTurnIndex = 0
 
+        # Check win condition
+        if len(self.players) <= 1:
+            self._record_final_standings(roster_before, {pid for pid in eliminated})
+            # Kept so `return_to_lobby()` can seat the whole table again,
+            # eliminated players included.
+            self._ended_roster = {p.id: p for p in roster_before}
+            self._clear_action_state(roster_before)
+            self.state = GameState.GAME_OVER
+            return
+
         self.currentTurnIndex = (self.currentTurnIndex + 1) % len(self.players)
         self.state = GameState.WAITING_FOR_ACTION
+        self._clear_action_state()
+
+    def _clear_action_state(self, roster: Optional[list[Player]] = None) -> None:
+        """
+        Forget everything about the action in progress.
+
+        Called from both exits of `next_turn()`. It used to sit inline in the
+        turn-advance path only, so a game that ended mid-action carried the last
+        one into GAME_OVER: the declared move, the declared block, who blocked,
+        who challenged, the target, the challenge loser and any `is_lying` flags
+        all survived. A finished game was publishing the shape of an action
+        nobody was taking.
+
+        `roster` is the pre-deletion snapshot, which the game-over path passes
+        because the eliminated players are no longer in `self.players` by then —
+        and they are exactly the ones whose `is_lying` would otherwise be left
+        set on objects a rematch is about to hand back to the lobby.
+        """
         self.declared_move = None
         self.declared_block = None
         self.challenge_loser = None
@@ -394,8 +440,95 @@ class CoupGame:
         self.challenger_id = None
         self.blocker_id = None
         self.pending_influence_target = None
-        for player in self.players.values():
+        self.exchange_cards = None
+        for player in (roster if roster is not None else list(self.players.values())):
             player.is_lying = False
+
+    def _record_final_standings(
+        self, roster: list[Player], eliminated_ids: set
+    ) -> None:
+        """
+        Capture how the game ended, before the eliminated players are dropped.
+
+        The roster is ordered winner first — the winner is whoever is still
+        standing, which after the deletions is the single remaining player — and
+        the rest keep table order behind them. Without this the game-over screen
+        could only ever render one row, because `playersState` holds survivors
+        only and a finished game has exactly one.
+        """
+        survivors = [p for p in roster if p.id not in eliminated_ids]
+        knocked_out = [p for p in roster if p.id in eliminated_ids]
+        # Knocked out with the most influence left is the better finish, so a
+        # tie at zero cards is broken by coins.
+        knocked_out.sort(key=lambda p: (-len(p.cards), -p.coins))
+        self.final_standings = [
+            self._standing_for(p, is_eliminated=False) for p in survivors
+        ] + [self._standing_for(p, is_eliminated=True) for p in knocked_out]
+
+    @staticmethod
+    def _standing_for(player: Player, is_eliminated: bool) -> PlayerModel:
+        return PlayerModel(
+            name=player.name,
+            id=player.id,
+            isReady=player.isReady,
+            numberOfCards=len(player.cards),
+            coins=player.coins,
+            isEliminated=is_eliminated,
+        )
+
+    def return_to_lobby(self) -> None:
+        """
+        End the game and put everyone back in the lobby ready to play again.
+
+        A finished game had no way out. `add_player()` refuses anyone unless the
+        state is WAITING_FOR_PLAYERS, and `GAME_OVER` is not that, so the winner
+        who clicked "Back to Lobby" found a lobby holding one player, could not
+        admit anyone, and could not start a game needing two. The only thing that
+        cleared it was POST /test/reset, which 403s unless ENV=testing.
+
+        Players are restored *by identity* from the snapshot taken when the game
+        ended, so their UUIDs survive and a client holding `userId` in
+        sessionStorage is still the same player afterwards. A rematch therefore
+        needs no re-registration, and the eliminated players come back too — the
+        table that just finished is the table that plays again.
+
+        A fresh `Card()` matters as much as the state reset: the deck has been
+        dealt from all game, and redealing from it would run the second game dry.
+
+        Callable while a game is still running as well as after it ended, so the
+        roster falls back to whoever is currently in the game when there is no
+        finished game to restore from. Restoring only the snapshot would empty
+        the room, which is how a live game would be silently disbanded.
+        """
+        roster = self._ended_roster or dict(self.players)
+        for player in roster.values():
+            player.reset()
+        self.players = dict(roster)
+        self.court_deck = Card()
+        self.chats.clear()
+        self.currentTurnIndex = 0
+        self._clear_action_state()
+        self.final_standings = None
+        self._ended_roster = {}
+        self.state = GameState.WAITING_FOR_PLAYERS
+
+    def reset(self) -> None:
+        """
+        Return the game to a pristine, empty lobby.
+
+        For tests and the /test/reset endpoint. Distinct from
+        `return_to_lobby()`, which keeps the roster: this one empties it, and
+        clears the chat, so a test run starts from nothing at all. Both are
+        here so there is one definition of each and no third copy in a fixture.
+        """
+        self.court_deck = Card()
+        self.players.clear()
+        self.chats.clear()
+        self.currentTurnIndex = 0
+        self._clear_action_state()
+        self.final_standings = None
+        self._ended_roster = {}
+        self.state = GameState.WAITING_FOR_PLAYERS
 
     def resolve_influence_selection(self, player_id: UUID, card_to_remove: Influence) -> None:
         """

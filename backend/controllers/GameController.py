@@ -42,6 +42,9 @@ class GameController:
             # untargeted one, which is what makes Foreign Aid blockable by
             # anyone.
             "moveTargetId": self.game.move_target_id,
+            # None until a game is decided. Carries the eliminated players, which
+            # `playersState` cannot: they are deleted from the roster.
+            "finalStandings": self.game.final_standings,
         }
         
         # Only include currentTurn if there are players

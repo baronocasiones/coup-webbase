@@ -71,11 +71,16 @@ class ConnectionManager:
         except Exception:
             self.disconnect(player_id)
 
-    async def broadcast(self, sender: UUID, message: dict | list):
+    async def broadcast(self, sender: Optional[UUID], message: dict | list):
         """Broadcast a message to all connected players except the sender.
 
         Args:
-            sender: The unique identifier of the player sending the message.
+            sender: The unique identifier of the player sending the message, or
+                ``None`` to reach *every* connection. The usual case excludes the
+                sender, who is expected to refresh their own state over REST. A
+                server-initiated broadcast has no sender to exclude, and
+                pretending otherwise with a sentinel id would be a lie the type
+                system could not catch.
             message: The JSON-serializable message to broadcast.
         """
         # Snapshot the connections before awaiting anything.

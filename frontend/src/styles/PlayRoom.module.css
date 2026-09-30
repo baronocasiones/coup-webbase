@@ -943,3 +943,18 @@ button.player:hover {
 .gameOverPlayerSelf .gameOverName {
     color: var(--gold, #C9A84C);
 }
+
+/*
+ * Marks a player who was knocked out. Muted rather than red: they are out, not
+ * damaged, and the row is a record of a finished game rather than a call to
+ * action. `isEliminated` only ever arrives on the game-over standings, since a
+ * live game deletes a player the moment their last card goes.
+ */
+.gameOverEliminated {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted, #B8B0A0);
+    opacity: 0.7;
+}

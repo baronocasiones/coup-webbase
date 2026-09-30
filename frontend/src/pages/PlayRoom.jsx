@@ -230,6 +230,14 @@ function PlayRoom() {
                     // Challenge result received — refresh game state
                     queryClient.invalidateQueries({ queryKey: ["gameState"] });
                     queryClient.invalidateQueries({ queryKey: ["gameState", userId] });
+                } else if (data.action === "game_reset") {
+                    // Somebody ended the game and put the table back in the
+                    // lobby. They navigate on their own click; everyone else
+                    // would otherwise sit on a game-over screen describing a
+                    // game the server has already discarded.
+                    queryClient.setQueryData(["gameState"], data.gameState);
+                    queryClient.invalidateQueries({ queryKey: ["gameState", userId] });
+                    navigate("/lobby");
                 } else if (data.error) {
                     console.error("Game WS error:", data.error);
                 } else {
@@ -557,7 +565,11 @@ function PlayRoom() {
             />
 
             {/* Game Over Screen */}
-            <GameOver gameState={gameState} userId={userId} />
+            <GameOver
+                gameState={gameState}
+                userId={userId}
+                onReturnedToLobby={() => navigate('/lobby')}
+            />
         </div>
     );
 }

@@ -1,8 +1,10 @@
 import styles from '../styles/PlayRoom.module.css'
 import PrimaryButton from './PrimaryButton'
 import { createTimeline, stagger } from 'animejs'
+import { useCallback, useState } from 'react'
 import { useAnimeScope } from '../hooks/useAnimeScope'
 import { DURATION, EASE, STAGGER, spring, selAll } from '../utils/motion'
+import { returnToLobby } from '../services/game'
 
 /**
  * GameOver — displayed when only one player remains.
@@ -12,9 +14,24 @@ import { DURATION, EASE, STAGGER, spring, selAll } from '../utils/motion'
  * sequence is ordered by viewer priority — who won, then that it happened,
  * then the rest of the standings — so the most important information is never
  * still fading in.
+ *
+ * **Leaving is a request, not a link.** The button used to be
+ * `window.location.href = '/lobby'`, which navigated without telling the server
+ * anything. A decided game had no way out — `GAME_OVER` refuses new players and
+ * holds a roster of one, and the only thing that cleared it was an endpoint
+ * gated behind `ENV=testing` — so the browser arrived at a lobby it could
+ * neither add to nor start a game from. The reset now happens first and
+ * navigation follows it; if it fails the player stays put and can try again,
+ * rather than being dropped into a dead lobby.
+ *
+ * The standings come from `finalStandings`, not `playersState`. The roster holds
+ * survivors only — a player is deleted the moment their last card goes — so a
+ * finished game has exactly one player in it and the ranking could only ever
+ * render a single row.
  */
-function GameOver({ gameState, userId }) {
+function GameOver({ gameState, userId, onReturnedToLobby }) {
     // Declared before the early return below, which does not affect the hook.
+    const [isLeaving, setIsLeaving] = useState(false)
     const [rootRef] = useAnimeScope((root) => {
         const tl = createTimeline({ defaults: { ease: EASE.entrance } })
 
@@ -63,9 +80,25 @@ function GameOver({ gameState, userId }) {
 
     if (!gameState || gameState.state !== 'GAME_OVER') return null
 
-    const players = gameState.playersState || []
-    const winner = players[0]
-    const isWinner = winner?.id === userId
+    const standings = gameState.finalStandings || gameState.playersState || []
+    const winner = standings.find(p => !p.isEliminated) || standings[0]
+    const isWinner = Boolean(winner) && winner.id === userId
+
+    // Reset first, navigate second, and only navigate on success. A rejected
+    // reset leaves the player on the game-over screen, which is recoverable;
+    // navigating regardless would put them in a lobby the server still believes
+    // is a finished game.
+    const handleReturnToLobby = useCallback(async () => {
+        if (isLeaving) return
+        setIsLeaving(true)
+        try {
+            await returnToLobby()
+            onReturnedToLobby?.()
+        } catch (error) {
+            console.error('Could not return to the lobby:', error)
+            setIsLeaving(false)
+        }
+    }, [isLeaving, onReturnedToLobby])
 
     return (
         <div className={styles.gameOverOverlay} ref={rootRef}>
@@ -84,7 +117,7 @@ function GameOver({ gameState, userId }) {
                     </p>
                 )}
                 <div className={styles.gameOverPlayers}>
-                    {players.map((player, index) => (
+                    {standings.map((player, index) => (
                         <div
                             key={player.id}
                             className={`${styles.gameOverPlayer} ${player.id === userId ? styles.gameOverPlayerSelf : ''}`}
@@ -92,10 +125,17 @@ function GameOver({ gameState, userId }) {
                             <span className={styles.gameOverRank}>#{index + 1}</span>
                             <span className={styles.gameOverName}>{player.name}</span>
                             {player.id === userId && <span className={styles.youBadge}>You</span>}
+                            {player.isEliminated && (
+                                <span className={styles.gameOverEliminated}>Eliminated</span>
+                            )}
                         </div>
                     ))}
                 </div>
-                <PrimaryButton text="Back to Lobby" onClick={() => window.location.href = '/lobby'} />
+                <PrimaryButton
+                    text={isLeaving ? 'Returning…' : 'Back to Lobby'}
+                    onClick={handleReturnToLobby}
+                    disabled={isLeaving}
+                />
             </div>
         </div>
     )

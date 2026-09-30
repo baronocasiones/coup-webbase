@@ -82,26 +82,14 @@ def debug_game():
 
 @app.post('/test/reset')
 def reset_game():
-    """Reset game state. Only for testing — must match conftest.py exactly."""
+    """Reset game state. Only for testing — delegates to CoupGame.reset()."""
     if os.environ.get("ENV") != "testing":
         raise HTTPException(status_code=403, detail="Not available")
-    from services.Card import Card
-    from services.GameState import GameState
 
-    # Reset the global game singleton
-    game.court_deck = Card()
-    game.players.clear()
-    game.chats.clear()
-    game.state = GameState.WAITING_FOR_PLAYERS
-    game.declared_move = None
-    game.declared_block = None
-    game.blocker_id = None
-    game.move_target_id = None
-    game.challenge_loser = None
-    game.pending_influence_target = None
-    game.exchange_cards = None
-    game.currentTurnIndex = 0
-    game.challenger_id = None
+    # One definition, shared with conftest.py's autouse fixture, so the two
+    # cannot drift. This used to re-list every field, which is how a field added
+    # to CoupGame later leaked between tests unnoticed.
+    game.reset()
 
     # Re-wire controllers
     lobby_controller.set_game(game)

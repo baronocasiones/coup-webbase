@@ -16,7 +16,13 @@ class GameStateModel(BaseModel):
     declaredBlock: Optional[BlockMove]
     challengeLoser: Optional[PlayerModel]
     latestMove: Optional[str] = None
-    currentTurn: PlayerModel
+    # Optional because a lobby with nobody in it has no current player, and
+    # `get_game_states()` omits the key entirely in that case. It used to be
+    # required, which meant the one call that renders an empty lobby raised
+    # ValidationError — a 500 — the moment a finished game was reset and the
+    # roster emptied. Returning to the lobby for a rematch goes straight
+    # through that state, so the strictness was not hypothetical.
+    currentTurn: Optional[PlayerModel] = None
     # Who declared the block, when `state` is BLOCK_DECLARED.
     #
     # This has to be public. During BLOCK_DECLARED, `currentTurn` is still the
@@ -50,6 +56,14 @@ class GameStateModel(BaseModel):
     # merely missing: Foreign Aid is blockable but has no target, and any player
     # may block it. See the eligibility check in CoupGame.declare_move().
     moveTargetId: Optional[UUID] = None
+    # How the game ended, winner first. None until a game is decided, and reset
+    # to None when the table goes back to the lobby.
+    #
+    # Separate from `playersState`, which holds survivors only — `next_turn()`
+    # deletes a player as soon as their last card goes — so once a game is over
+    # the roster is a single player and the standings would be a single row.
+    # This is where the eliminated players are still visible.
+    finalStandings: Optional[list[PlayerModel]] = None
 
     class config:
         extra = 'ignore'

@@ -1,6 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import GameOver from '../../components/GameOver'
+import { returnToLobby } from '../../services/game'
+
+vi.mock('../../services/game', () => ({
+  returnToLobby: vi.fn(),
+}))
 
 describe('GameOver component @unit', () => {
   it('returns null when gameState is null', () => {
@@ -103,5 +108,140 @@ describe('GameOver component @unit', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Back to Lobby' })).toBeInTheDocument()
+  })
+
+  /*
+   * Leaving a finished game.
+   *
+   * The button used to be `window.location.href = '/lobby'` — a navigation that
+   * told the server nothing. A decided game had no way out: GAME_OVER refuses
+   * new players and holds a roster of one, and the only thing that cleared it
+   * was gated behind ENV=testing. So the browser arrived at a lobby it could
+   * neither add to nor start a game from, and the only escape was a server
+   * restart.
+   */
+  describe('returning to the lobby', () => {
+    beforeEach(() => {
+        returnToLobby.mockReset()
+        returnToLobby.mockResolvedValue({ state: 'WAITING_FOR_PLAYERS' })
+    })
+
+    const gameOver = {
+        state: 'GAME_OVER',
+        playersState: [{ id: '1', name: 'Alice' }],
+        finalStandings: [
+            { id: '1', name: 'Alice', isEliminated: false },
+            { id: '2', name: 'Bob', isEliminated: true },
+        ],
+    }
+
+    it('asks the server to reset the game', async () => {
+        render(<GameOver gameState={gameOver} userId="1" onReturnedToLobby={() => {}} />)
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to Lobby' }))
+
+        await waitFor(() => expect(returnToLobby).toHaveBeenCalledTimes(1))
+    })
+
+    it('navigates only after the reset succeeds', async () => {
+        // Order matters. Navigating first would land the player in a lobby the
+        // server still believes is a finished game.
+        const order = []
+        returnToLobby.mockImplementation(() => {
+            order.push('reset')
+            return Promise.resolve({})
+        })
+        render(
+            <GameOver
+                gameState={gameOver}
+                userId="1"
+                onReturnedToLobby={() => order.push('navigate')}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to Lobby' }))
+
+        await waitFor(() => expect(order).toEqual(['reset', 'navigate']))
+    })
+
+    it('stays put and can retry when the reset fails', async () => {
+        // The failure mode that mattered: a reset the server refused used to
+        // leave the player walking into a dead lobby with no way back.
+        returnToLobby.mockRejectedValue(new Error('nope'))
+        const onReturnedToLobby = vi.fn()
+        render(<GameOver gameState={gameOver} userId="1" onReturnedToLobby={onReturnedToLobby} />)
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to Lobby' }))
+
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Back to Lobby' })).toBeEnabled())
+        expect(onReturnedToLobby).not.toHaveBeenCalled()
+    })
+
+    it('does not fire twice while the reset is in flight', async () => {
+        let release
+        returnToLobby.mockImplementation(() => new Promise((resolve) => { release = resolve }))
+        render(<GameOver gameState={gameOver} userId="1" onReturnedToLobby={() => {}} />)
+
+        const button = screen.getByRole('button', { name: 'Back to Lobby' })
+        fireEvent.click(button)
+        fireEvent.click(screen.getByRole('button', { name: /Returning/ }))
+
+        expect(returnToLobby).toHaveBeenCalledTimes(1)
+        release({})
+    })
+  })
+
+  /*
+   * The standings come from `finalStandings`, not `playersState`.
+   *
+   * The roster holds survivors only — `next_turn()` deletes a player the moment
+   * their last card goes — so a finished game has exactly one player in it and
+   * the ranking could only ever render a single row. Reading the roster made
+   * "player rankings" decorative.
+   */
+  describe('final standings', () => {
+    it('ranks the eliminated players that the roster no longer contains', () => {
+        render(
+            <GameOver
+                gameState={{
+                    state: 'GAME_OVER',
+                    // The roster is down to the winner: this is all a live game
+                    // ever holds once it is over.
+                    playersState: [{ id: '1', name: 'Alice', isEliminated: false }],
+                    finalStandings: [
+                        { id: '1', name: 'Alice', isEliminated: false },
+                        { id: '2', name: 'Bob', isEliminated: true },
+                        { id: '3', name: 'Charlie', isEliminated: true },
+                    ],
+                }}
+                userId="1"
+            />
+        )
+
+        expect(screen.getByText('Bob')).toBeInTheDocument()
+        expect(screen.getByText('Charlie')).toBeInTheDocument()
+        expect(screen.getAllByText('Eliminated')).toHaveLength(2)
+    })
+
+    it('names the winner from the standings, not the first row', () => {
+        // Winner first is the server's ordering, but the winner is identified by
+        // the flag rather than by position, so a reordering cannot turn a loser
+        // into the headline.
+        render(
+            <GameOver
+                gameState={{
+                    state: 'GAME_OVER',
+                    playersState: [],
+                    finalStandings: [
+                        { id: '2', name: 'Bob', isEliminated: true },
+                        { id: '1', name: 'Alice', isEliminated: false },
+                    ],
+                }}
+                userId="3"
+            />
+        )
+
+        expect(screen.getByText('Alice wins the game!')).toBeInTheDocument()
+    })
   })
 })

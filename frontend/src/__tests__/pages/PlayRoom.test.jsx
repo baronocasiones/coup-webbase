@@ -8,6 +8,7 @@ import PlayRoom from '../../pages/PlayRoom'
 vi.mock('../../services/game', () => ({
   getGame: vi.fn(),
   getUserPlayer: vi.fn(),
+  returnToLobby: vi.fn(),
 }))
 
 vi.mock('../../services/chat', () => ({
@@ -492,3 +493,78 @@ describe('PlayRoom exchange flow @integration', () => {
   })
 })
 
+/**
+ * Somebody pressed "Back to Lobby".
+ *
+ * The reset is broadcast, not just returned, because the players who did not
+ * press the button would otherwise sit on a game-over screen describing a game
+ * the server has already thrown away — and they have no button of their own to
+ * press.
+ *
+ * The frame is `{"action": "game_reset", ...}` rather than a bare game state, so
+ * the client reads one field instead of inferring intent from a state value that
+ * also occurs on connect.
+ */
+describe('PlayRoom game reset broadcast @integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.sessionStorage.clear()
+  })
+
+  function gameSocket() {
+    const socket = window.WebSocket.instances.find((s) => s.url.includes('/ws/game'))
+    if (!socket) throw new Error('no game socket was opened')
+    return socket
+  }
+
+  it('leaves the finished board when another player resets the game', async () => {
+    renderPlayRoom({
+      ...mockGameState,
+      state: 'GAME_OVER',
+      finalStandings: [
+        { id: 'user-1', name: 'Alice', isEliminated: false },
+        { id: 'user-2', name: 'Bob', isEliminated: true },
+      ],
+    })
+
+    await waitFor(() => expect(gameSocket()).toBeTruthy())
+
+    // The precondition, asserted. Without it this test would pass on any build
+    // where the overlay never rendered, and would be detecting nothing.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Back to Lobby' })).toBeInTheDocument()
+    )
+
+    gameSocket()._simulateMessage({
+      action: 'game_reset',
+      gameState: { ...mockGameState, state: 'WAITING_FOR_PLAYERS' },
+    })
+
+    // The board is gone; a game-over overlay describing a discarded game would
+    // be worse than an empty screen.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Back to Lobby' })).not.toBeInTheDocument()
+    )
+  })
+
+  it('does not treat an ordinary state update as a reset', async () => {
+    // A bare game state also arrives on connect, and WAITING_FOR_PLAYERS is a
+    // perfectly ordinary value. Reacting to it without an explicit action would
+    // navigate on the wrong evidence.
+    renderPlayRoom({
+      ...mockGameState,
+      state: 'GAME_OVER',
+      finalStandings: [{ id: 'user-1', name: 'Alice', isEliminated: false }],
+    })
+
+    await waitFor(() => expect(gameSocket()).toBeTruthy())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Back to Lobby' })).toBeInTheDocument()
+    )
+
+    gameSocket()._simulateMessage({ ...mockGameState, state: 'WAITING_FOR_PLAYERS' })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByRole('button', { name: 'Back to Lobby' })).toBeInTheDocument()
+  })
+})
