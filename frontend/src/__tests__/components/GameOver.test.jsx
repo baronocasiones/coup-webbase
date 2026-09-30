@@ -245,3 +245,47 @@ describe('GameOver component @unit', () => {
     })
   })
 })
+
+  /*
+   * Hooks must not sit below the `return null`.
+   *
+   * The component returns nothing until the game is decided, so a hook placed
+   * after that early return is a *conditional* hook: the component calls a
+   * different number of hooks depending on the game state, and React throws
+   * "Rendered fewer hooks than expected" the first time a re-render crosses
+   * the boundary.
+   *
+   * That is not a hypothetical ordering — it is precisely what happens when the
+   * game ends while the player is already watching the board, which is the
+   * normal way anyone reaches this screen. It survived an earlier round of
+   * tests because none of them re-rendered across the transition, so it is
+   * pinned here: the overlay starts absent, appears, and the render must
+   * survive.
+   */
+  it('survives a re-render across the game-over boundary', () => {
+    const gameState = {
+      state: 'WAITING_FOR_ACTION',
+      playersState: [{ id: '1', name: 'Alice' }],
+    }
+    const { rerender, container } = render(
+      <GameOver gameState={gameState} userId="1" onReturnedToLobby={() => {}} />
+    )
+    expect(container.firstChild).toBeNull()
+
+    // The game is decided while the component is already mounted.
+    rerender(
+      <GameOver
+        gameState={{ ...gameState, state: 'GAME_OVER' }}
+        userId="1"
+        onReturnedToLobby={() => {}}
+      />
+    )
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // And back again, so a rematch's broadcast cannot trip it either.
+    rerender(
+      <GameOver gameState={gameState} userId="1" onReturnedToLobby={() => {}} />
+    )
+    expect(container.firstChild).toBeNull()
+  })

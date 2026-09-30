@@ -134,6 +134,16 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
+                    # Logged with the action and the player. The client
+                    # only shows this in the console, so a rejection caused by
+                    # the client acting on a wrong assumption is otherwise
+                    # invisible from the server side — which is how the
+                    # influence-selection wedge sat in a dead state with
+                    # nobody able to act and nothing in any log.
+                    logger.warning(
+                        "Game WS rejected action=%s player=%s: %s",
+                        action, user_id, e,
+                    )
                     await websocket.send_json({"error": str(e)})
 
             elif action == "block":
@@ -152,6 +162,16 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
+                    # Logged with the action and the player. The client
+                    # only shows this in the console, so a rejection caused by
+                    # the client acting on a wrong assumption is otherwise
+                    # invisible from the server side — which is how the
+                    # influence-selection wedge sat in a dead state with
+                    # nobody able to act and nothing in any log.
+                    logger.warning(
+                        "Game WS rejected action=%s player=%s: %s",
+                        action, user_id, e,
+                    )
                     await websocket.send_json({"error": str(e)})
 
             elif action == "exchange_selection":
@@ -163,6 +183,16 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
+                    # Logged with the action and the player. The client
+                    # only shows this in the console, so a rejection caused by
+                    # the client acting on a wrong assumption is otherwise
+                    # invisible from the server side — which is how the
+                    # influence-selection wedge sat in a dead state with
+                    # nobody able to act and nothing in any log.
+                    logger.warning(
+                        "Game WS rejected action=%s player=%s: %s",
+                        action, user_id, e,
+                    )
                     await websocket.send_json({"error": str(e)})
 
             elif action == "influence_selection":
@@ -174,6 +204,16 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
+                    # Logged with the action and the player. The client
+                    # only shows this in the console, so a rejection caused by
+                    # the client acting on a wrong assumption is otherwise
+                    # invisible from the server side — which is how the
+                    # influence-selection wedge sat in a dead state with
+                    # nobody able to act and nothing in any log.
+                    logger.warning(
+                        "Game WS rejected action=%s player=%s: %s",
+                        action, user_id, e,
+                    )
                     await websocket.send_json({"error": str(e)})
 
             elif action == "challenge":
@@ -195,6 +235,16 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
+                    # Logged with the action and the player. The client
+                    # only shows this in the console, so a rejection caused by
+                    # the client acting on a wrong assumption is otherwise
+                    # invisible from the server side — which is how the
+                    # influence-selection wedge sat in a dead state with
+                    # nobody able to act and nothing in any log.
+                    logger.warning(
+                        "Game WS rejected action=%s player=%s: %s",
+                        action, user_id, e,
+                    )
                     await websocket.send_json({"error": str(e)})
 
             elif action == "challenge_selection":
@@ -206,6 +256,16 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
+                    # Logged with the action and the player. The client
+                    # only shows this in the console, so a rejection caused by
+                    # the client acting on a wrong assumption is otherwise
+                    # invisible from the server side — which is how the
+                    # influence-selection wedge sat in a dead state with
+                    # nobody able to act and nothing in any log.
+                    logger.warning(
+                        "Game WS rejected action=%s player=%s: %s",
+                        action, user_id, e,
+                    )
                     await websocket.send_json({"error": str(e)})
 
             elif action == "no_challenge":
@@ -215,6 +275,16 @@ async def game_websocket(websocket: WebSocket, user_id: UUID):
                     state = GameStateModel(**game_controller.get_game_states()).model_dump(mode='json')
                     await game_controller.game_manager.broadcast(user_id, state)
                 except (ValueError, Exception) as e:
+                    # Logged with the action and the player. The client
+                    # only shows this in the console, so a rejection caused by
+                    # the client acting on a wrong assumption is otherwise
+                    # invisible from the server side — which is how the
+                    # influence-selection wedge sat in a dead state with
+                    # nobody able to act and nothing in any log.
+                    logger.warning(
+                        "Game WS rejected action=%s player=%s: %s",
+                        action, user_id, e,
+                    )
                     await websocket.send_json({"error": str(e)})
 
             else:

@@ -78,12 +78,14 @@ function GameOver({ gameState, userId, onReturnedToLobby }) {
         // state transition is what runs the reveal for the first time.
     }, [gameState?.state])
 
-    if (!gameState || gameState.state !== 'GAME_OVER') return null
-
-    const standings = gameState.finalStandings || gameState.playersState || []
-    const winner = standings.find(p => !p.isEliminated) || standings[0]
-    const isWinner = Boolean(winner) && winner.id === userId
-
+    // Above the early return below, deliberately. A hook placed after it is a
+    // conditional hook: the component calls a different number of hooks
+    // depending on whether the game is decided, and React throws "Rendered
+    // fewer hooks than expected" the first time a re-render crosses that
+    // boundary — which is exactly what happens when the game ends while the
+    // player is already looking at the board. It survived the first round of
+    // tests because none of them re-rendered across the transition.
+    //
     // Reset first, navigate second, and only navigate on success. A rejected
     // reset leaves the player on the game-over screen, which is recoverable;
     // navigating regardless would put them in a lobby the server still believes
@@ -99,6 +101,12 @@ function GameOver({ gameState, userId, onReturnedToLobby }) {
             setIsLeaving(false)
         }
     }, [isLeaving, onReturnedToLobby])
+
+    if (!gameState || gameState.state !== 'GAME_OVER') return null
+
+    const standings = gameState.finalStandings || gameState.playersState || []
+    const winner = standings.find(p => !p.isEliminated) || standings[0]
+    const isWinner = Boolean(winner) && winner.id === userId
 
     return (
         <div className={styles.gameOverOverlay} ref={rootRef}>

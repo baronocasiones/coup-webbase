@@ -72,6 +72,16 @@ export const STAGGER = {
 }
 
 /**
+ * How long a transient message stays on screen, in milliseconds.
+ *
+ * Only here so a toast and its own test cannot disagree about the timing — the
+ * dismissal is driven from this token rather than a literal in the component.
+ * Not part of `DURATION`: that is animation length, and this is how long
+ * something waits before it leaves.
+ */
+export const TOAST_DISMISS_MS = 3000
+
+/**
  * True when the user has asked their OS to reduce motion.
  *
  * Every animation in the app is gated on this — see `useAnimeScope` and

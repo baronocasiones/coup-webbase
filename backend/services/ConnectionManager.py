@@ -1,6 +1,9 @@
 from fastapi import WebSocket
 from uuid import UUID
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -97,5 +100,14 @@ class ConnectionManager:
                 continue
             try:
                 await connection.send_json(message)
-            except Exception:
+            except Exception as e:
+                # Logged, and it says what was being sent. This handler used to
+                # discard the exception entirely, which is how a `TypeError`
+                # from a UUID inside a chat payload could unregister the innocent
+                # recipient of a broadcast with nothing in any log: the player
+                # silently stopped receiving chat and nothing said why.
+                logger.warning(
+                    "Dropping a dead %s connection for %s: %s",
+                    type(self).__name__, id, e,
+                )
                 self.disconnect(id)

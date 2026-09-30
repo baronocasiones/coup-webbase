@@ -1,0 +1,46 @@
+/*
+ * Toast — see DESIGN.md "Toast Notifications".
+ *
+ * Bottom-right, an elevated surface, and a 3px left border carrying the type.
+ * The border does the work of the type: it is the only thing that changes
+ * between tones, so a message stays readable in greyscale and for anyone who
+ * cannot rely on hue alone.
+ */
+.toast {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 60;
+
+    max-width: 340px;
+    padding: 12px 16px;
+
+    background: var(--bg-elevated, #16161F);
+    border: 1px solid var(--bg-surface, #1C1C28);
+    border-left: 3px solid var(--text-muted, #6B6358);
+    border-radius: 4px;
+
+    color: var(--text-primary, #F5F0E8);
+    font-size: 14px;
+    line-height: 1.4;
+
+    /* Motion belongs to anime.js in Toast.jsx; a transition here would fight
+       it and leave an inline transform behind to clean up. */
+}
+
+/*
+ * `transform` and `opacity` only. The entrance animates these, so the compositor
+ * handles them; animating a paint-only property on a fixed element over a busy
+ * board is what produced the stale-layer artifact documented in frontend.md.
+ */
+.error {
+    border-left-color: var(--danger, #A63D40);
+}
+
+.warning {
+    border-left-color: var(--gold, #C9A84C);
+}
+
+.info {
+    border-left-color: var(--text-secondary, #A09888);
+}

@@ -568,3 +568,55 @@ describe('PlayRoom game reset broadcast @integration', () => {
     expect(screen.getByRole('button', { name: 'Back to Lobby' })).toBeInTheDocument()
   })
 })
+
+/**
+ * A refused action has to be visible.
+ *
+ * The game WebSocket answers every rejected action with `{"error": "..."}`, and
+ * the client wrote that to the console and nothing else — so a refused action
+ * looked exactly like an ignored one, and a player had no way to tell that
+ * anything had happened. The influence-selection bug is the worst case: the
+ * picker was shown to the wrong player, every selection came back refused, and
+ * the table sat in a dead state with no sign of it on screen.
+ */
+describe('PlayRoom refused actions @integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.sessionStorage.clear()
+    window.sessionStorage.setItem('userId', 'user-1')
+  })
+
+  function gameSocket() {
+    const socket = window.WebSocket.instances.find((s) => s.url.includes('/ws/game'))
+    if (!socket) throw new Error('no game socket was opened')
+    return socket
+  }
+
+  it('surfaces the server\'s refusal instead of only logging it', async () => {
+    renderPlayRoom()
+
+    await waitFor(() => expect(gameSocket()).toBeTruthy())
+
+    gameSocket()._simulateMessage({
+      error: 'Only the target of an action can block it.',
+    })
+
+    // The server's own words, not a generic apology: the player should learn
+    // what the rule was, and not only that something went wrong.
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Only the target of an action can block it.'
+      )
+    )
+  })
+
+  it('shows nothing at all when no action has been refused', async () => {
+    renderPlayRoom()
+
+    await waitFor(() => expect(gameSocket()).toBeTruthy())
+
+    // The precondition, asserted. Without it this test would pass on a build
+    // where the alert was permanently present, and would be detecting nothing.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})

@@ -6,6 +6,7 @@ import ChallengePanel from "./../components/ChallengePanel.jsx";
 import ExchangeModal from "./../components/ExchangeModal.jsx";
 import InfluencePicker from "./../components/InfluencePicker.jsx";
 import GameOver from "./../components/GameOver.jsx";
+import Toast from "./../components/Toast.jsx";
 import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +40,7 @@ function PlayRoom() {
     const queryClient = useQueryClient();
     const [isChoosingTarget, setIsChoosingTarget] = useState(false);
     const [pendingAction, setPendingAction] = useState(null);
+    const [notice, setNotice] = useState(null);
 
     const { data: gameState, isLoading: gameStateIsLoading } = useQuery({
         queryKey: ["gameState"],
@@ -239,7 +241,23 @@ function PlayRoom() {
                     queryClient.invalidateQueries({ queryKey: ["gameState", userId] });
                     navigate("/lobby");
                 } else if (data.error) {
+                    /*
+                     * Shown, not just logged.
+                     *
+                     * Every handler answers a refused action with an `error`
+                     * frame, and this used to go to the console and nowhere
+                     * else — so a refused action looked exactly like an ignored
+                     * one. That is what made the influence-selection bug so hard
+                     * to see: the picker was offered to the wrong player, every
+                     * selection came back refused, and the table sat in a dead
+                     * state with nothing on screen to explain it.
+                     *
+                     * The message is the server's own words rather than a
+                     * generic apology, so the player learns what the rule was
+                     * and not only that something went wrong.
+                     */
                     console.error("Game WS error:", data.error);
+                    setNotice({ message: data.error, tone: "error", id: Date.now() });
                 } else {
                     // State update
                     //
@@ -562,6 +580,14 @@ function PlayRoom() {
                 visible={showInfluencePicker}
                 cards={userPlayer?.cards || []}
                 onSelect={isChallengeLoser ? handleChallengeSelect : handleInfluenceSelect}
+            />
+
+            {/* A refused action, or a request the server would not honour. */}
+            <Toast
+                message={notice?.message}
+                tone={notice?.tone}
+                noticeKey={notice?.id}
+                onDismiss={() => setNotice(null)}
             />
 
             {/* Game Over Screen */}
