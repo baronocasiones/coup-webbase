@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from controllers.LobbyController import lobby_controller
 from controllers.GameController import game_controller
 from utils.state import game
+from utils.exceptions import PlayerNotFoundError
 from logging_config import setup_logging
 
 from services.ConnectionManager import ConnectionManager
@@ -105,9 +106,15 @@ def reset_game():
 
 @app.websocket('/ws/lobby')
 async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
-    player = lobby_controller.get_player_by_id(user_id)
-    player_name = player.name if player else None
-    if player_name is None:
+    # `get_player_by_id` *raises* `PlayerNotFoundError` for an unknown id rather
+    # than returning None, so the `if player is None` check below used to be
+    # dead code: the exception escaped first, and the endpoint produced an
+    # unhandled server error instead of the 1008 close this contract documents.
+    # It happened to still fail the handshake, so the tests asserting a rejected
+    # connection passed either way and the difference was invisible.
+    try:
+        player = lobby_controller.get_player_by_id(user_id)
+    except PlayerNotFoundError:
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
@@ -137,23 +144,49 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: UUID):
 
 @app.websocket('/ws/chat')
 async def websocket_chat_endpoint(websocket: WebSocket, user_id: UUID):
-    player = lobby_controller.get_player_by_id(user_id)
-    player_name = player.name if player else None
-    if player_name is None:
+    # Same dead branch as /ws/lobby: the lookup raises rather than returning
+    # None, so the documented 1008 close never ran.
+    try:
+        player = lobby_controller.get_player_by_id(user_id)
+    except PlayerNotFoundError:
         await websocket.close(code=1008, reason="Invalid player ID")
         return
 
-    await chat_manager.connect(websocket, user_id, lobby_controller.get_game_chats())
+    # `chats=`, by keyword, and carrying the finished frame rather than a bare
+    # list. This used to pass the history positionally, into `players_state`, so
+    # the chat log arrived wrapped in the *lobby player list* envelope —
+    # {"action": "connect", "players": [...]} — and ChatBox stored that object
+    # where it expected a list. The `chats` parameter had never been used by any
+    # caller in the codebase.
+    #
+    # Note this reaches the *other* players, not the one connecting: `connect`
+    # broadcasts with the sender excluded. That is harmless here because ChatBox
+    # fetches the log over REST on mount, and the connecting client already has
+    # it.
+    await chat_manager.connect(
+        websocket,
+        user_id,
+        chats={'action': 'chat', 'messages': lobby_controller.get_game_chats()},
+    )
     try:
         while True:
             try:
-                message_data = json.loads(await websocket.receive_text())
+                # Parsed only to reject malformed frames, not for its contents.
+                # The stored log is the source of truth (REST is the sole
+                # persistence path, per the project's chat convention), so the
+                # body is advisory and the reply is re-read from the server.
+                json.loads(await websocket.receive_text())
             except json.JSONDecodeError:
                 await websocket.send_json({"error": "Invalid JSON format"})
                 continue
 
-            # Broadcast the raw message to all OTHER connected clients
-            await chat_manager.broadcast(user_id, message_data)
+            # Re-read the log rather than relaying what the client sent. The
+            # frame is now uniform: connect sends the whole list, and so does
+            # every subsequent message, so the client has one shape to handle
+            # instead of guessing from an object-vs-list distinction.
+            await chat_manager.broadcast(
+                user_id, {'action': 'chat', 'messages': lobby_controller.get_game_chats()}
+            )
 
     except WebSocketDisconnect as e:
         chat_manager.disconnect(user_id)

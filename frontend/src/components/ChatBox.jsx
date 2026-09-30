@@ -95,8 +95,26 @@ function ChatBox({ header, withSubmission = true }) {
 
             chatWs.current.onmessage = (event) => {
                 try {
-                    const chats = JSON.parse(event.data)
-                    queryClient.setQueryData(['chatMessages'], chats)
+                    const frame = JSON.parse(event.data)
+                    /*
+                     * One frame shape, read from `frame.messages`.
+                     *
+                     * The server used to send two different things on this
+                     * channel — a list on connect and a single message object on
+                     * broadcast — and this handler stored whatever arrived as
+                     * though it were always the complete list. So a message from
+                     * another player replaced the cache with an object:
+                     * `messageDatas.length` became `undefined`, both
+                     * `length === 0` and `length > 0` were false, neither render
+                     * branch ran, and the whole chat log went blank with no
+                     * error anywhere. Only the sender recovered, via the REST
+                     * invalidation in the mutation.
+                     *
+                     * A frame that is not a chat frame is ignored rather than
+                     * stored, so a stray shape cannot poison the cache again.
+                     */
+                    if (frame?.action !== 'chat' || !Array.isArray(frame.messages)) return
+                    queryClient.setQueryData(['chatMessages'], frame.messages)
                 } catch (error) {
                     console.error('Error parsing WebSocket message:', error)
                 }

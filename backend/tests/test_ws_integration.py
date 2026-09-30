@@ -4,6 +4,7 @@ import pytest
 from collections import Counter
 from uuid import UUID, uuid4
 from starlette.testclient import TestClient
+import api
 from api import app
 from services.CoupGame import CoupGame
 from services.Player import Player
@@ -106,16 +107,59 @@ class TestChatWebSocket:
                 pass
 
     def test_message_broadcast(self, client):
-        """Chat message from one client reaches the other."""
+        """
+        A message posted by one player reaches the other over the socket.
+
+        This used to hand-build a payload and `send_json` it straight down the
+        socket, which never touched persistence. That made the channel look
+        healthy while testing nothing the app does: `game.chats` stayed empty, so
+        the frame carried plain strings, so the unserializable-storage bug below
+        was structurally unreachable. And it asserted the recipient received a
+        *single message object*, which is the shape ChatBox cannot use.
+
+        Both fixed by going through `POST /chat` like the client does, and by
+        asserting the frame the client actually reads.
+        """
         p1 = _add_player(client, "Alice")
         p2 = _add_player(client, "Bob")
 
         with client.websocket_connect(f"/ws/chat?user_id={p1['id']}") as ws1:
             with client.websocket_connect(f"/ws/chat?user_id={p2['id']}") as ws2:
-                ws1.send_json({"message": "Hello!", "sender": "Alice"})
-                data = ws2.receive_json()
-                assert data["message"] == "Hello!"
-                assert data["sender"] == "Alice"
+                # Before any read, and for the *recipient* specifically. The
+                # unserialisable payload fails when the broadcast is sent, and
+                # `broadcast()` then unregisters whoever it could not reach — so
+                # the socket about to be read from is the one at risk. Asserted
+                # rather than assumed, because a read from a silently
+                # unregistered socket never returns and takes the run with it.
+                from api import chat_manager
+
+                assert UUID(p1["id"]) in chat_manager.active_connections
+
+                response = client.post(
+                    "/chat",
+                    json={
+                        "userId": p1["id"],
+                        "sender_username": "Alice",
+                        "message": "Hello!",
+                    },
+                )
+                assert response.status_code == 201
+                ws1.send_json({"userId": p1["id"], "message": "Hello!"})
+
+                # Bob is the recipient, and therefore the socket at risk from an
+                # unencodable payload. Checked before the read that would hang.
+                assert UUID(p2["id"]) in chat_manager.active_connections, (
+                    "the recipient was unregistered by a payload it could not encode"
+                )
+
+                frame = ws2.receive_json()
+
+                assert frame["action"] == "chat"
+                # The whole log, every time. The client replaces its cache with
+                # `frame.messages`, so a single message object here left
+                # `messageDatas.length` undefined and blanked the entire chat.
+                assert isinstance(frame["messages"], list)
+                assert [m["message"] for m in frame["messages"]] == ["Hello!"]
 
     def test_invalid_json_returns_error(self, client):
         """Sending invalid JSON returns an error message."""
@@ -127,20 +171,37 @@ class TestChatWebSocket:
             assert "Invalid JSON" in data["error"]
 
     def test_multiple_messages(self, client):
-        """Multiple messages are broadcast in order."""
+        """Every message is broadcast, and each frame carries the whole log."""
         p1 = _add_player(client, "Alice")
         p2 = _add_player(client, "Bob")
-
-        with client.websocket_connect(f"/ws/lobby?user_id={p1['id']}") as _:
-            pass  # just to keep alice alive in lobby
+        from api import chat_manager
 
         with client.websocket_connect(f"/ws/chat?user_id={p1['id']}") as ws1:
             with client.websocket_connect(f"/ws/chat?user_id={p2['id']}") as ws2:
                 for i in range(3):
-                    ws1.send_json({"message": f"msg-{i}"})
+                    client.post(
+                        "/chat",
+                        json={
+                            "userId": p1["id"],
+                            "sender_username": "Alice",
+                            "message": f"msg-{i}",
+                        },
+                    )
+                    ws1.send_json({"userId": p1["id"], "message": f"msg-{i}"})
+
+                    # The reader is the socket most at risk from an unencodable
+                    # payload, and a read from an unregistered socket never
+                    # returns. Asserted per iteration, not once up front: the
+                    # registry can be emptied by any one of these broadcasts.
+                    assert UUID(p2["id"]) in chat_manager.active_connections
+
                 for i in range(3):
-                    data = ws2.receive_json()
-                    assert data["message"] == f"msg-{i}"
+                    frame = ws2.receive_json()
+                    assert frame["action"] == "chat"
+                    # Grows by one each time, and the tail is the newest — the
+                    # property a client replacing its whole cache depends on.
+                    assert len(frame["messages"]) == i + 1
+                    assert frame["messages"][-1]["message"] == f"msg-{i}"
 
 
 # ---------------------------------------------------------------------------
@@ -1105,3 +1166,147 @@ class TestGameOverAndRematch:
         assert response.status_code == 200
         assert response.json()["currentTurn"] is None
         assert response.json()["playersState"] == []
+
+
+# ---------------------------------------------------------------------------
+# The chat channel's shape and its storage
+# ---------------------------------------------------------------------------
+
+class TestChatChannelContract:
+    """
+    Two defects that the chat tests could not see.
+
+    The frame the client reads. The connect frame used to be
+    `{"action": "connect", "players": [...chat...]}` — the *lobby* envelope,
+    because the handler passed the history positionally into `connect()`'s
+    `players_state` parameter and `chats=` had never been used by anyone. Live
+    broadcasts sent a single message object instead. `ChatBox` stored whatever
+    arrived as if it were always the complete list, so a message from another
+    player replaced the cache with an object: `length` became `undefined`, both
+    render branches were false, and the whole chat log vanished with no error
+    anywhere. Only the sender recovered, via the REST invalidation.
+
+    The stored payload. `POST /chat` stored a raw `model_dump()`, holding live
+    `UUID` and `datetime` objects. REST never showed it — the response model
+    re-serialises the value — but `/ws/chat` put those dicts straight onto a
+    socket, where Starlette's `send_json` runs `json.dumps` and raised
+    TypeError. `broadcast()`'s broad `except` turned that into
+    `disconnect(recipient)`: **every player was silently dropped from chat each
+    time anyone joined the lobby.** No log, no error frame, no test.
+    """
+
+    @staticmethod
+    def _ids(players: list[dict]) -> list[UUID]:
+        return [UUID(p["id"]) for p in players]
+
+    def test_the_connect_frame_is_a_chat_frame_not_a_player_list(self, client):
+        import json as _json
+
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        alice, bob = self._ids(players)
+        client.post(
+            "/chat",
+            json={"userId": players[0]["id"], "sender_username": "Alice", "message": "hi"},
+        )
+
+        # Precondition, asserted first. If the stored log cannot be encoded then
+        # no frame reaches anybody at all, and the `receive_json()` below would
+        # block forever rather than fail — which is how this class of bug hides.
+        # `test_the_stored_chat_log_is_json_serialisable` covers it directly;
+        # here it just keeps this test's failure legible.
+        for message in game.chats:
+            _json.dumps(message)
+
+        with client.websocket_connect(f"/ws/chat?user_id={alice}") as first:
+            with client.websocket_connect(f"/ws/chat?user_id={bob}") as second:
+                # Bob joining pushes the log to Alice. It must be a chat frame.
+                frame = first.receive_json()
+
+                assert frame["action"] == "chat"
+                assert "players" not in frame, "chat arrived in the lobby player envelope"
+                assert [m["message"] for m in frame["messages"]] == ["hi"]
+
+    def test_a_joining_player_does_not_unregister_the_incumbent(self, client):
+        """
+        The silent disconnect.
+
+        Under the bug, Bob joining pushed the stored log at Alice, `json.dumps`
+        raised on the UUID inside it, and `broadcast()`'s broad `except`
+        unregistered *Alice* — the innocent recipient. No log, no error frame, no
+        test.
+
+        Asserted on the connection registry rather than on a frame arriving
+        afterwards, which is not a stylistic choice. A frame read from an
+        unregistered socket never returns, so a frame-based version of this test
+        *hangs* on the regression it is written for, and this repository has a
+        documented history of a hanging test taking a whole run with it. The
+        registry is the evidence; the frame shape is covered separately.
+        """
+        from api import chat_manager
+
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        alice, _ = self._ids(players)
+
+        with client.websocket_connect(f"/ws/chat?user_id={alice}"):
+            assert alice in chat_manager.active_connections, "the socket was never registered"
+            with client.websocket_connect(f"/ws/chat?user_id={players[1]['id']}"):
+                assert alice in chat_manager.active_connections, (
+                    "the incumbent was unregistered by someone else's arrival"
+                )
+
+    def test_the_stored_chat_log_is_json_serialisable(self, client):
+        # Directly, because the symptom was a TypeError inside a broad except
+        # half a stack frame away, where it turned into a dropped connection
+        # rather than an error.
+        import json as _json
+
+        players = _make_game_with_players(client, ["Alice", "Bob"])
+        client.post(
+            "/chat",
+            json={"userId": players[0]["id"], "sender_username": "Alice", "message": "hi"},
+        )
+
+        for message in game.chats:
+            _json.dumps(message)  # raises on a live UUID or datetime
+
+    @pytest.mark.parametrize("endpoint", ["chat", "lobby"])
+    def test_an_invalid_player_is_closed_with_the_documented_code(self, endpoint):
+        """
+        `get_player_by_id` raises `PlayerNotFoundError` rather than returning
+        None, so the `if player is None` branch was dead and the handler produced
+        an unhandled error instead of the 1008 close this contract documents.
+
+        Driven at the handler rather than over a socket, because that is the only
+        place the close code is observable: `TestClient` surfaces both an
+        unhandled error and a pre-accept close as a bare `WebSocketDisconnect`,
+        so a socket-level test here would pass either way and assert nothing
+        about the contract it names.
+        """
+        import asyncio
+
+        class RecordingWebSocket:
+            def __init__(self):
+                self.closed_with = None
+                self.accepted = False
+
+            async def close(self, code=1000, reason=None):
+                self.closed_with = (code, reason)
+
+            async def accept(self):
+                self.accepted = True
+
+            async def receive_text(self):
+                raise AssertionError("the handler should not have accepted")
+
+        handlers = {
+            "chat": api.websocket_chat_endpoint,
+            "lobby": api.websocket_lobby_endpoint,
+        }
+        socket = RecordingWebSocket()
+
+        asyncio.run(handlers[endpoint](socket, user_id=uuid4()))
+
+        assert socket.closed_with == (1008, "Invalid player ID"), (
+            "an unknown player must be closed with 1008, not raise past the branch"
+        )
+        assert socket.accepted is False
